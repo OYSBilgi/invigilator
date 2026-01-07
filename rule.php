@@ -147,6 +147,8 @@ class quizaccess_invigilator extends quiz_access_rule_base
         $mform->addElement('static', 'modalcontent', '', $modalcontent);
         $mform->addElement('static', 'actionbtns', '', $actionbtns);
         $mform->addElement('checkbox', 'invigilator', get_string('invigilatorlabel', 'quizaccess_invigilator'));
+        $hiddenvalue = "<input id='invigilator_window_surface' name='invigilator_window_surface' value='' type='hidden'/>".
+                   "<input id='invigilator_share_state' name='invigilator_share_state' value='' type='hidden'/>";
         $mform->addElement('html', $hiddenvalue);
     }
 
@@ -177,6 +179,15 @@ class quizaccess_invigilator extends quiz_access_rule_base
     public function validate_preflight_check($data, $files, $errors, $attemptid) {
         if (empty($data['invigilator'])) {
             $errors['invigilator'] = get_string('youmustagree', 'quizaccess_invigilator');
+        }
+
+        return $errors;
+
+        // 2. Check if the screen has been shared (via the hidden input field).
+        // If the hidden field 'invigilator_window_surface' is empty, it means the JS didn't record a successful share.
+        if (empty($data['invigilator_window_surface'])) {
+            // We assign the error to the 'invigilator' field so it highlights the checkbox area in red.
+            $errors['invigilator'] = "You must share your screen before you can start the attempt.";
         }
 
         return $errors;
