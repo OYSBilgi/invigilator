@@ -1,6 +1,6 @@
 services:
   moodle:
-    image: moodle:4.4.3-apache
+    image: bitnamilegacy/moodle:4.5.4
     container_name: moodle-invigilator-test
     ports:
       - "8080:80"
