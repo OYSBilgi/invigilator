@@ -36,6 +36,38 @@ if ($hassiteconfig) {
         get_string('setting:screenshotwidth', 'quizaccess_invigilator'),
         get_string('setting:screenshotwidth_desc', 'quizaccess_invigilator'), 720, PARAM_INT));
 
+    // Screen recording.
+    $settings->add(new admin_setting_heading('quizaccess_invigilator/recordingheading',
+        get_string('setting:recordingheading', 'quizaccess_invigilator'),
+        get_string('setting:recordingheading_desc', 'quizaccess_invigilator')));
+
+    $settings->add(new admin_setting_configcheckbox('quizaccess_invigilator/enablerecording',
+        get_string('setting:enablerecording', 'quizaccess_invigilator'),
+        get_string('setting:enablerecording_desc', 'quizaccess_invigilator'), 1));
+
+    $settings->add(new admin_setting_configtext('quizaccess_invigilator/recordingsegment',
+        get_string('setting:recordingsegment', 'quizaccess_invigilator'),
+        get_string('setting:recordingsegment_desc', 'quizaccess_invigilator'), 60, PARAM_INT));
+
+    $settings->add(new admin_setting_configtext('quizaccess_invigilator/recordingwidth',
+        get_string('setting:recordingwidth', 'quizaccess_invigilator'),
+        get_string('setting:recordingwidth_desc', 'quizaccess_invigilator'), 1280, PARAM_INT));
+
+    $settings->add(new admin_setting_configtext('quizaccess_invigilator/recordingframerate',
+        get_string('setting:recordingframerate', 'quizaccess_invigilator'),
+        get_string('setting:recordingframerate_desc', 'quizaccess_invigilator'), 5, PARAM_INT));
+
+    $settings->add(new admin_setting_configtext('quizaccess_invigilator/recordingbitrate',
+        get_string('setting:recordingbitrate', 'quizaccess_invigilator'),
+        get_string('setting:recordingbitrate_desc', 'quizaccess_invigilator'), 300, PARAM_INT));
+
+    $settings->add(new admin_setting_configtext('quizaccess_invigilator/recordingmaxsize',
+        get_string('setting:recordingmaxsize', 'quizaccess_invigilator'),
+        get_string('setting:recordingmaxsize_desc', 'quizaccess_invigilator'), 10, PARAM_INT));
+
+    $settings->add(new admin_setting_configtext('quizaccess_invigilator/recordingretention',
+        get_string('setting:recordingretention', 'quizaccess_invigilator'),
+        get_string('setting:recordingretention_desc', 'quizaccess_invigilator'), 0, PARAM_INT));
 }
 
 

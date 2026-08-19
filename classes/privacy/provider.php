@@ -59,6 +59,17 @@ class provider implements
             'privacy:metadata:quizaccess_invigilator_logs'
         );
 
+        // Stores the screen recording segments captured during an attempt.
+        $collection->add_database_table(
+            'quizaccess_invigilator_rec',
+            [
+                'userid' => 'privacy:metadata:quizaccess_invigilator_rec:userid',
+                'recording' => 'privacy:metadata:quizaccess_invigilator_rec:recording',
+                'timecreated' => 'privacy:metadata:quizaccess_invigilator_rec:timecreated'
+            ],
+            'privacy:metadata:quizaccess_invigilator_rec'
+        );
+
         return $collection;
     }
 
@@ -79,6 +90,12 @@ class provider implements
 
         $contextlist = new contextlist();
         $contextlist->add_from_sql($sql, $params);
+
+        $recordingsql = "SELECT DISTINCT c.id
+                           FROM {quizaccess_invigilator_rec} qir
+                           JOIN {context} c ON c.instanceid = qir.cmid AND c.contextlevel = :context
+                          WHERE qir.userid = :userid";
+        $contextlist->add_from_sql($recordingsql, ['context' => CONTEXT_MODULE, 'userid' => $userid]);
 
         $fileparams = ['component' => 'quizaccess_invigilator', 'userid' => $userid];
         $sqlfile = "SELECT DISTINCT contextid as id
@@ -104,6 +121,11 @@ class provider implements
                  WHERE cm.id = ?";
         $params = [$context->instanceid];
         $userlist->add_from_sql('userid', $sql, $params);
+
+        $recordingsql = "SELECT DISTINCT qir.userid AS userid
+                           FROM {quizaccess_invigilator_rec} qir
+                          WHERE qir.cmid = ?";
+        $userlist->add_from_sql('userid', $recordingsql, [$context->instanceid]);
 
         $fileparams = ['component' => 'quizaccess_invigilator', 'contextid' => $context->id];
         $sqlfile = "SELECT DISTINCT userid
@@ -199,6 +221,11 @@ class provider implements
         // Delete all of the webcam images for this user.
         $fs = get_file_storage();
         $fs->delete_area_files($context->id, 'quizaccess_invigilator', 'picture');
+
+        // Screen recordings are removed with their stored files.
+        if ($context->contextlevel === CONTEXT_MODULE) {
+            \quizaccess_invigilator\recording_manager::delete_for_cm($context->instanceid);
+        }
     }
 
     /**
@@ -227,6 +254,13 @@ class provider implements
                 $fs->delete_area_files($context->id, 'quizaccess_invigilator', 'picture', $file->id);
             endforeach;
         }
+
+        // Screen recordings of the listed users, in this quiz.
+        if ($context->contextlevel === CONTEXT_MODULE) {
+            foreach ($userlist->get_userids() as $userid) {
+                \quizaccess_invigilator\recording_manager::delete_for_user($context->instanceid, $userid);
+            }
+        }
     }
 
     /**
@@ -254,6 +288,11 @@ class provider implements
             foreach ($userfiles as $file) :
                 $fs->delete_area_files($context->id, 'quizaccess_invigilator', 'picture', $file->itemid);
             endforeach;
+
+            // Delete the screen recordings of this user in this quiz.
+            if ($context->contextlevel === CONTEXT_MODULE) {
+                \quizaccess_invigilator\recording_manager::delete_for_user($context->instanceid, $params['userid']);
+            }
         }
     }
 }

@@ -24,14 +24,22 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-require_once($CFG->dirroot . '/mod/quiz/accessrule/accessrulebase.php');
 require_once($CFG->dirroot . '/mod/quiz/accessrule/invigilator/lib.php');
+
+// Moodle 4.2 moved quiz_access_rule_base into the mod_quiz namespace. Alias whichever class
+// this site ships so the rule below works on Moodle 4.0 and later without changes.
+if (class_exists('\\mod_quiz\\local\\access_rule_base')) {
+    class_alias('\\mod_quiz\\local\\access_rule_base', 'quizaccess_invigilator_rule_base');
+} else {
+    require_once($CFG->dirroot . '/mod/quiz/accessrule/accessrulebase.php');
+    class_alias('quiz_access_rule_base', 'quizaccess_invigilator_rule_base');
+}
 
 
 /**
  * quizaccess_invigilator
  */
-class quizaccess_invigilator extends quiz_access_rule_base
+class quizaccess_invigilator extends quizaccess_invigilator_rule_base
 {
 
     /**
@@ -110,13 +118,13 @@ class quizaccess_invigilator extends quiz_access_rule_base
     /**
      * add_preflight_check_form_fields
      *
-     * @param mod_quiz_preflight_check_form $quizform
+     * @param \mod_quiz\form\preflight_check_form|mod_quiz_preflight_check_form $quizform
      * @param MoodleQuickForm $mform
      * @param mixed $attemptid
      * @return void
      * @throws coding_exception
      */
-    public function add_preflight_check_form_fields(mod_quiz_preflight_check_form $quizform, MoodleQuickForm $mform, $attemptid) {
+    public function add_preflight_check_form_fields($quizform, MoodleQuickForm $mform, $attemptid) {
         global $PAGE;
         $coursedata = $this->get_courseid_cmid_from_preflight_form();
         $screenshotdelay = get_config('quizaccess_invigilator', 'screenshotdelay');
@@ -131,6 +139,7 @@ class quizaccess_invigilator extends quiz_access_rule_base
         $record["screensharemsg"] = get_string('alert:screensharemsg', 'quizaccess_invigilator');
         $record["restartattemptcommand"] = get_string('alert:restartattemptcommand', 'quizaccess_invigilator');
         $record["somethingwentwrong"] = get_string('alert:somethingwentwrong', 'quizaccess_invigilator');
+        $record = array_merge($record, self::get_recording_js_config());
 
         $PAGE->requires->js_call_amd('quizaccess_invigilator/startattempt', 'setup', [$record]);
         $attributesarray = $mform->_attributes;
@@ -198,12 +207,12 @@ class quizaccess_invigilator extends quiz_access_rule_base
      * There is no obligation to return anything. If it is not appropriate to tell students
      * about this rule, then just return ''.
      *
-     * @param quiz $quizobj
+     * @param \mod_quiz\quiz_settings|quiz $quizobj
      * @param int $timenow
      * @param bool $canignoretimelimits
      * @return quiz_access_rule_base|quizaccess_invigilator|null
      */
-    public static function make(quiz $quizobj, $timenow, $canignoretimelimits) {
+    public static function make($quizobj, $timenow, $canignoretimelimits) {
         if (empty($quizobj->get_quiz()->invigilatorrequired)) {
             return null;
         }
@@ -215,11 +224,11 @@ class quizaccess_invigilator extends quiz_access_rule_base
      * method is called from mod_quiz_mod_form::definition(), while the
      * security section is being built.
      *
-     * @param mod_quiz_mod_form $quizform the quiz settings form that is being built.
+     * @param \mod_quiz\form\edit_form|mod_quiz_mod_form $quizform the quiz settings form that is being built.
      * @param MoodleQuickForm $mform the wrapped MoodleQuickForm.
      * @throws coding_exception
      */
-    public static function add_settings_form_fields(mod_quiz_mod_form $quizform, MoodleQuickForm $mform) {
+    public static function add_settings_form_fields($quizform, MoodleQuickForm $mform) {
         $mform->addElement('select', 'invigilatorrequired',
             get_string('invigilatorrequired', 'quizaccess_invigilator'),
             [
@@ -262,6 +271,8 @@ class quizaccess_invigilator extends quiz_access_rule_base
     public static function delete_settings($quiz) {
         global $DB;
         $DB->delete_records('quizaccess_invigilator', ['quizid' => $quiz->id]);
+        // The stored files go away with the module context, the rows pointing at them do not.
+        $DB->delete_records(\quizaccess_invigilator\recording_manager::TABLE, ['quizid' => $quiz->id]);
     }
 
     /**
@@ -348,6 +359,40 @@ class quizaccess_invigilator extends quiz_access_rule_base
     }
 
     /**
+     * Everything the browser side recorder needs to know, ready to be handed to the AMD module.
+     *
+     * @return array
+     * @throws coding_exception
+     */
+    public static function get_recording_js_config(): array {
+        $manager = \quizaccess_invigilator\recording_manager::class;
+
+        $config = [];
+        $config["enablerecording"] = (int)$manager::is_enabled();
+        $config["recordingsegment"] = max(5, $manager::get_setting('recordingsegment'));
+        $config["recordingwidth"] = max(320, $manager::get_setting('recordingwidth'));
+        $config["recordingframerate"] = max(1, $manager::get_setting('recordingframerate'));
+        $config["recordingbitrate"] = max(50, $manager::get_setting('recordingbitrate'));
+        $config["recordingmaxsize"] = max(1, $manager::get_setting('recordingmaxsize'));
+        $config["sessionid"] = self::generate_session_id();
+        $config["recordingunsupported"] = get_string('alert:recordingunsupported', 'quizaccess_invigilator');
+        $config["recordingfailed"] = get_string('alert:recordingfailed', 'quizaccess_invigilator');
+
+        return $config;
+    }
+
+    /**
+     * Random id that groups every recording segment of one attempt.
+     *
+     * @return string 32 lower case hex characters.
+     */
+    public static function generate_session_id(): string {
+        global $USER;
+
+        return md5(uniqid($USER->id . '-', true) . random_string(10));
+    }
+
+    /**
      * Get a button to view the Invigilator report.
      *
      * @return string A link to view report
@@ -357,12 +402,19 @@ class quizaccess_invigilator extends quiz_access_rule_base
         global $OUTPUT, $USER;
 
         $context = context_module::instance($this->quiz->cmid, MUST_EXIST);
+        $buttons = '';
         if (has_capability('quizaccess/invigilator:viewreport', $context, $USER->id)) {
             $httplink = \quizaccess_invigilator\link_generator::get_link($this->quiz->course, $this->quiz->cmid, false, is_https());
-            return $OUTPUT->single_button($httplink, get_string('picturesreport', 'quizaccess_invigilator'), 'get');
-        } else {
-            return '';
+            $buttons .= $OUTPUT->single_button($httplink, get_string('picturesreport', 'quizaccess_invigilator'), 'get');
         }
+        if (\quizaccess_invigilator\recording_manager::is_enabled()
+                && has_capability('quizaccess/invigilator:viewrecording', $context, $USER->id)) {
+            $recordingsurl = new moodle_url('/mod/quiz/accessrule/invigilator/recordings.php',
+                ['courseid' => $this->quiz->course, 'cmid' => $this->quiz->cmid]);
+            $buttons .= $OUTPUT->single_button($recordingsurl, get_string('recordingsreport', 'quizaccess_invigilator'), 'get');
+        }
+
+        return $buttons;
     }
 
 }

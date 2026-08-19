@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with MailTest.  If not, see <http://www.gnu.org/licenses/>.
 /**
- * Version information for the quizaccess_invigilator plugin.
+ * Scheduled tasks for the quizaccess_invigilator plugin.
  *
  * @package    quizaccess_invigilator
  * @copyright  2021 Brain Station 23
@@ -23,9 +23,14 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->component = 'quizaccess_invigilator';
-$plugin->release = '2.1.0';
-$plugin->version = 2026081900;
-$plugin->requires = 2022041900; // Moodle 4.0.
-$plugin->supported = [400, 500]; // Moodle 4.0 - 5.0.
-$plugin->maturity = MATURITY_BETA;
+$tasks = [
+    [
+        'classname' => 'quizaccess_invigilator\task\cleanup_recordings',
+        'blocking' => 0,
+        'minute' => '20',
+        'hour' => '3',
+        'day' => '*',
+        'dayofweek' => '*',
+        'month' => '*',
+    ],
+];

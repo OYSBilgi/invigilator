@@ -36,6 +36,19 @@ defined('MOODLE_INTERNAL') || die();
  * @return bool false if the file not found, just send the file otherwise and do not return anything.
  */
 function quizaccess_invigilator_pluginfile($course, $cm, $context, $filearea, $args, $forcedownload, array $options=array()) {
+    global $USER;
+
+    if ($context->contextlevel != CONTEXT_MODULE) {
+        return false;
+    }
+
+    $allowedareas = ['picture', \quizaccess_invigilator\recording_manager::FILEAREA];
+    if (!in_array($filearea, $allowedareas, true)) {
+        return false;
+    }
+
+    require_login($course, false, $cm);
+
     $itemid = array_shift($args);
     $filename = array_pop($args);
     if (!$args) {
@@ -48,5 +61,15 @@ function quizaccess_invigilator_pluginfile($course, $cm, $context, $filearea, $a
     if (!$file) {
         return false;
     }
+
+    // Only staff may look at other people's captures. Students can still see their own.
+    $viewcapability = $filearea === 'picture'
+        ? 'quizaccess/invigilator:getscreenshot'
+        : 'quizaccess/invigilator:viewrecording';
+    if ((int)$file->get_userid() !== (int)$USER->id && !has_capability($viewcapability, $context)) {
+        return false;
+    }
+
+    // Recordings are played back in the browser, so they must stay seekable.
     send_stored_file($file, 0, 0, $forcedownload, $options);
 }

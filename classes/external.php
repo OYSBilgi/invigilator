@@ -25,7 +25,22 @@
 
 defined('MOODLE_INTERNAL') || die;
 
-require_once($CFG->libdir.'/externallib.php');
+// Moodle 4.2 moved the external API classes into the core_external namespace. Alias whichever
+// set of classes this site ships so the plugin runs unchanged on Moodle 4.0 and later.
+if (class_exists('\\core_external\\external_api')) {
+    class_alias('\\core_external\\external_api', 'quizaccess_invigilator_external_api');
+    class_alias('\\core_external\\external_function_parameters', 'quizaccess_invigilator_external_params');
+    class_alias('\\core_external\\external_value', 'quizaccess_invigilator_external_value');
+    class_alias('\\core_external\\external_single_structure', 'quizaccess_invigilator_external_structure');
+    class_alias('\\core_external\\external_warnings', 'quizaccess_invigilator_external_warnings');
+} else {
+    require_once($CFG->libdir . '/externallib.php');
+    class_alias('external_api', 'quizaccess_invigilator_external_api');
+    class_alias('external_function_parameters', 'quizaccess_invigilator_external_params');
+    class_alias('external_value', 'quizaccess_invigilator_external_value');
+    class_alias('external_single_structure', 'quizaccess_invigilator_external_structure');
+    class_alias('external_warnings', 'quizaccess_invigilator_external_warnings');
+}
 
 /**
  * External class.
@@ -34,21 +49,21 @@ require_once($CFG->libdir.'/externallib.php');
  * @copyright 2021 Brain Station 23
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class quizaccess_invigilator_external extends external_api
+class quizaccess_invigilator_external extends quizaccess_invigilator_external_api
 {
 
     /**
      * Store parameters.
      *
-     * @return external_function_parameters
+     * @return quizaccess_invigilator_external_params
      */
-    public static function send_screenshot_parameters () {
-        return new external_function_parameters(
+    public static function send_screenshot_parameters() {
+        return new quizaccess_invigilator_external_params(
             array(
-                'courseid' => new external_value(PARAM_INT, 'course id'),
-                'cmid' => new external_value(PARAM_INT, 'screenshot id'),
-                'quizid' => new external_value(PARAM_INT, 'screenshot quiz id'),
-                'screenshot' => new external_value(PARAM_RAW, 'webcam photo')
+                'courseid' => new quizaccess_invigilator_external_value(PARAM_INT, 'course id'),
+                'cmid' => new quizaccess_invigilator_external_value(PARAM_INT, 'screenshot id'),
+                'quizid' => new quizaccess_invigilator_external_value(PARAM_INT, 'screenshot quiz id'),
+                'screenshot' => new quizaccess_invigilator_external_value(PARAM_RAW, 'webcam photo')
             )
         );
     }
@@ -82,6 +97,10 @@ class quizaccess_invigilator_external extends external_api
         );
         $filepath = "/";
 
+        $context = context_module::instance($cmid);
+        self::validate_context($context);
+        require_capability('quizaccess/invigilator:sendscreenshot', $context);
+
         // Save file.
         $warnings = array();
 
@@ -103,7 +122,6 @@ class quizaccess_invigilator_external extends external_api
         $record->license = '';
         $record->author = '';
 
-        $context = context_module::instance($cmid);
         $fs = get_file_storage();
         $record->filepath = file_correct_filepath($record->filepath);
 
@@ -155,18 +173,162 @@ class quizaccess_invigilator_external extends external_api
     /**
      * Cam shots return parameters.
      *
-     * @return external_single_structure
+     * @return quizaccess_invigilator_external_structure
      */
     public static function send_screenshot_returns() {
-        return new external_single_structure(
+        return new quizaccess_invigilator_external_structure(
             array(
-                'screenshotid' => new external_value(PARAM_INT, 'screenshot sent id'),
-                'warnings' => new external_warnings()
+                'screenshotid' => new quizaccess_invigilator_external_value(PARAM_INT, 'screenshot sent id'),
+                'warnings' => new quizaccess_invigilator_external_warnings()
             )
         );
     }
 
 
+
+    /**
+     * Parameters accepted when a recording segment is sent.
+     *
+     * @return quizaccess_invigilator_external_params
+     */
+    public static function send_recording_parameters() {
+        return new quizaccess_invigilator_external_params(
+            array(
+                'courseid' => new quizaccess_invigilator_external_value(PARAM_INT, 'course id'),
+                'cmid' => new quizaccess_invigilator_external_value(PARAM_INT, 'course module id of the quiz'),
+                'quizid' => new quizaccess_invigilator_external_value(PARAM_INT, 'quiz id'),
+                'sessionid' => new quizaccess_invigilator_external_value(PARAM_ALPHANUMEXT,
+                    'client generated id grouping the segments of one attempt'),
+                'sequence' => new quizaccess_invigilator_external_value(PARAM_INT,
+                    'zero based position of this segment inside the session'),
+                'mimetype' => new quizaccess_invigilator_external_value(PARAM_RAW,
+                    'mime type the browser recorded with, for example video/webm;codecs=vp9'),
+                'duration' => new quizaccess_invigilator_external_value(PARAM_INT, 'length of this segment in seconds'),
+                'recording' => new quizaccess_invigilator_external_value(PARAM_RAW, 'the segment as a base64 data url')
+            )
+        );
+    }
+
+    /**
+     * Store one screen recording segment.
+     *
+     * Each segment is a standalone playable file, so a lost connection or a crashed browser
+     * only ever costs the segment that was being recorded at the time.
+     *
+     * @param int $courseid
+     * @param int $cmid
+     * @param int $quizid
+     * @param string $sessionid
+     * @param int $sequence
+     * @param string $mimetype
+     * @param int $duration
+     * @param string $recording base64 data url holding the segment.
+     * @return array
+     * @throws dml_exception
+     * @throws file_exception
+     * @throws invalid_parameter_exception
+     * @throws moodle_exception
+     */
+    public static function send_recording($courseid, $cmid, $quizid, $sessionid, $sequence, $mimetype, $duration, $recording) {
+        global $USER;
+
+        $params = self::validate_parameters(
+            self::send_recording_parameters(),
+            array(
+                'courseid' => $courseid,
+                'cmid' => $cmid,
+                'quizid' => $quizid,
+                'sessionid' => $sessionid,
+                'sequence' => $sequence,
+                'mimetype' => $mimetype,
+                'duration' => $duration,
+                'recording' => $recording
+            )
+        );
+
+        $context = context_module::instance($params['cmid']);
+        self::validate_context($context);
+        require_capability('quizaccess/invigilator:sendrecording', $context);
+
+        $warnings = array();
+
+        if (!\quizaccess_invigilator\recording_manager::is_enabled()) {
+            $warnings[] = array(
+                'item' => 'recording',
+                'itemid' => 0,
+                'warningcode' => 'recordingdisabled',
+                'message' => get_string('warning:recordingdisabled', 'quizaccess_invigilator')
+            );
+            return array('recordingid' => 0, 'warnings' => $warnings);
+        }
+
+        $binary = self::decode_data_url($params['recording']);
+        if ($binary === '') {
+            $warnings[] = array(
+                'item' => 'recording',
+                'itemid' => 0,
+                'warningcode' => 'emptyrecording',
+                'message' => get_string('warning:emptyrecording', 'quizaccess_invigilator')
+            );
+            return array('recordingid' => 0, 'warnings' => $warnings);
+        }
+
+        $maxsize = \quizaccess_invigilator\recording_manager::get_max_segment_size();
+        if (strlen($binary) > $maxsize) {
+            $warnings[] = array(
+                'item' => 'recording',
+                'itemid' => 0,
+                'warningcode' => 'recordingtoolarge',
+                'message' => get_string('warning:recordingtoolarge', 'quizaccess_invigilator', display_size($maxsize))
+            );
+            return array('recordingid' => 0, 'warnings' => $warnings);
+        }
+
+        $record = \quizaccess_invigilator\recording_manager::store_segment(
+            $params['courseid'],
+            $params['cmid'],
+            $params['quizid'],
+            $USER->id,
+            $params['sessionid'],
+            max(0, (int)$params['sequence']),
+            $params['mimetype'],
+            max(0, (int)$params['duration']),
+            $binary
+        );
+
+        return array('recordingid' => (int)$record->id, 'warnings' => $warnings);
+    }
+
+    /**
+     * What send_recording returns.
+     *
+     * @return quizaccess_invigilator_external_structure
+     */
+    public static function send_recording_returns() {
+        return new quizaccess_invigilator_external_structure(
+            array(
+                'recordingid' => new quizaccess_invigilator_external_value(PARAM_INT, 'id of the stored segment, 0 if not stored'),
+                'warnings' => new quizaccess_invigilator_external_warnings()
+            )
+        );
+    }
+
+    /**
+     * Turn a "data:video/webm;base64,...." string into the raw bytes it holds.
+     *
+     * @param string $dataurl
+     * @return string the decoded data, or an empty string if the input was not usable.
+     */
+    protected static function decode_data_url($dataurl) {
+        $commapos = strpos($dataurl, ',');
+        if ($commapos === false) {
+            return '';
+        }
+
+        $decoded = base64_decode(substr($dataurl, $commapos + 1), true);
+
+        return $decoded === false ? '' : $decoded;
+    }
 
     /**
      * Check user capability

@@ -89,6 +89,15 @@ if (has_capability('quizaccess/invigilator:deletescreenshot', $context, $USER->i
     $logbtn = '<a class="btn btn-primary" style="margin-left:5px" href="' . $logpageurl . '">' . $logbtnlabel . '</a>';
 }
 
+$recordingbtn = "";
+if (\quizaccess_invigilator\recording_manager::is_enabled()
+        && has_capability('quizaccess/invigilator:viewrecording', $context, $USER->id)) {
+    $recordingurl = new moodle_url('/mod/quiz/accessrule/invigilator/recordings.php',
+        ['courseid' => $courseid, 'cmid' => $cmid]);
+    $recordingbtn = '<a class="btn btn-primary" style="margin-left:5px" href="' . $recordingurl . '">'
+        . get_string('recordingsreport', 'quizaccess_invigilator') . '</a>';
+}
+
 if ($submittype == 'Search' && $searchkey != null) {
     $searchform = '<form action="' . $CFG->wwwroot
         . '/mod/quiz/accessrule/invigilator/report.php"><input type="hidden" id="courseid" name="courseid" value="'
@@ -157,6 +166,10 @@ if (
             $file->delete();
         }
     endforeach;
+
+    // Screen recordings of this student in this quiz go as well.
+    \quizaccess_invigilator\recording_manager::delete_for_user($cmid, $studentid);
+
     $url2 = new moodle_url(
         '/mod/quiz/accessrule/invigilator/report.php',
         array(
@@ -170,7 +183,7 @@ if (
 echo $OUTPUT->header();
 echo '<div id="main"><h2>' . get_string('invigilatorreports', 'quizaccess_invigilator') . ''
     . $quiz->name . '</h2>' . '<br/><br/><div style="float: left">' . $searchform . '</div>' . '<div style="float: right">'
-    . $settingsbtn . $logbtn . '</div><br/><br/><div class="box generalbox m-b-1 adminerror alert alert-info p-y-1">'
+    . $settingsbtn . $logbtn . $recordingbtn . '</div><br/><br/><div class="box generalbox m-b-1 adminerror alert alert-info p-y-1">'
     . get_string('screenshot', 'quizaccess_invigilator') . '</div>';
 
 // Report print.

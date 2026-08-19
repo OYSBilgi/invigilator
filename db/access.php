@@ -61,5 +61,33 @@ $capabilities = array(
             'manager' => CAP_ALLOW
         )
     ),
+    // Send screen recording segments while attempting a quiz.
+    'quizaccess/invigilator:sendrecording' => array(
+        'captype' => 'write',
+        'contextlevel' => CONTEXT_MODULE,
+        'archetypes' => array(
+            'student' => CAP_ALLOW,
+            'manager' => CAP_ALLOW
+        )
+    ),
+    // View the recordings captured during a quiz.
+    'quizaccess/invigilator:viewrecording' => array(
+        'captype' => 'read',
+        'contextlevel' => CONTEXT_MODULE,
+        'archetypes' => array(
+            'teacher' => CAP_ALLOW,
+            'editingteacher' => CAP_ALLOW,
+            'manager' => CAP_ALLOW
+        )
+    ),
+    // Delete recordings.
+    'quizaccess/invigilator:deleterecording' => array(
+        'riskbitmask' => RISK_DATALOSS,
+        'captype' => 'write',
+        'contextlevel' => CONTEXT_MODULE,
+        'archetypes' => array(
+            'editingteacher' => CAP_ALLOW,
+            'manager' => CAP_ALLOW
+        )
+    ),
 );
-
