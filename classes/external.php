@@ -187,33 +187,34 @@ class quizaccess_invigilator_external extends quizaccess_invigilator_external_ap
 
 
     /**
-     * Parameters accepted when a recording segment is sent.
+     * Parameters accepted when a captured frame is sent.
      *
      * @return quizaccess_invigilator_external_params
      */
-    public static function send_recording_parameters() {
+    public static function send_frame_parameters() {
         return new quizaccess_invigilator_external_params(
             array(
                 'courseid' => new quizaccess_invigilator_external_value(PARAM_INT, 'course id'),
                 'cmid' => new quizaccess_invigilator_external_value(PARAM_INT, 'course module id of the quiz'),
                 'quizid' => new quizaccess_invigilator_external_value(PARAM_INT, 'quiz id'),
                 'sessionid' => new quizaccess_invigilator_external_value(PARAM_ALPHANUMEXT,
-                    'client generated id grouping the segments of one attempt'),
+                    'client generated id grouping the frames of one attempt'),
                 'sequence' => new quizaccess_invigilator_external_value(PARAM_INT,
-                    'zero based position of this segment inside the session'),
+                    'zero based position of this frame inside the session'),
                 'mimetype' => new quizaccess_invigilator_external_value(PARAM_RAW,
-                    'mime type the browser recorded with, for example video/webm;codecs=vp9'),
-                'duration' => new quizaccess_invigilator_external_value(PARAM_INT, 'length of this segment in seconds'),
-                'recording' => new quizaccess_invigilator_external_value(PARAM_RAW, 'the segment as a base64 data url')
+                    'mime type of the image, for example image/jpeg'),
+                'duration' => new quizaccess_invigilator_external_value(PARAM_INT,
+                    'seconds this frame stands for, that is the capture interval'),
+                'recording' => new quizaccess_invigilator_external_value(PARAM_RAW, 'the frame as a base64 data url')
             )
         );
     }
 
     /**
-     * Store one screen recording segment.
+     * Store one captured screen frame.
      *
-     * Each segment is a standalone playable file, so a lost connection or a crashed browser
-     * only ever costs the segment that was being recorded at the time.
+     * The screen is sampled rather than filmed, so an attempt costs a handful of small images
+     * instead of a video file, and a dropped connection only ever loses a single frame.
      *
      * @param int $courseid
      * @param int $cmid
@@ -222,18 +223,18 @@ class quizaccess_invigilator_external extends quizaccess_invigilator_external_ap
      * @param int $sequence
      * @param string $mimetype
      * @param int $duration
-     * @param string $recording base64 data url holding the segment.
+     * @param string $recording base64 data url holding the image.
      * @return array
      * @throws dml_exception
      * @throws file_exception
      * @throws invalid_parameter_exception
      * @throws moodle_exception
      */
-    public static function send_recording($courseid, $cmid, $quizid, $sessionid, $sequence, $mimetype, $duration, $recording) {
+    public static function send_frame($courseid, $cmid, $quizid, $sessionid, $sequence, $mimetype, $duration, $recording) {
         global $USER;
 
         $params = self::validate_parameters(
-            self::send_recording_parameters(),
+            self::send_frame_parameters(),
             array(
                 'courseid' => $courseid,
                 'cmid' => $cmid,
@@ -273,7 +274,7 @@ class quizaccess_invigilator_external extends quizaccess_invigilator_external_ap
             return array('recordingid' => 0, 'warnings' => $warnings);
         }
 
-        $maxsize = \quizaccess_invigilator\recording_manager::get_max_segment_size();
+        $maxsize = \quizaccess_invigilator\recording_manager::get_max_frame_size();
         if (strlen($binary) > $maxsize) {
             $warnings[] = array(
                 'item' => 'recording',
@@ -284,7 +285,7 @@ class quizaccess_invigilator_external extends quizaccess_invigilator_external_ap
             return array('recordingid' => 0, 'warnings' => $warnings);
         }
 
-        $record = \quizaccess_invigilator\recording_manager::store_segment(
+        $record = \quizaccess_invigilator\recording_manager::store_frame(
             $params['courseid'],
             $params['cmid'],
             $params['quizid'],
@@ -300,21 +301,21 @@ class quizaccess_invigilator_external extends quizaccess_invigilator_external_ap
     }
 
     /**
-     * What send_recording returns.
+     * What send_frame returns.
      *
      * @return quizaccess_invigilator_external_structure
      */
-    public static function send_recording_returns() {
+    public static function send_frame_returns() {
         return new quizaccess_invigilator_external_structure(
             array(
-                'recordingid' => new quizaccess_invigilator_external_value(PARAM_INT, 'id of the stored segment, 0 if not stored'),
+                'recordingid' => new quizaccess_invigilator_external_value(PARAM_INT, 'id of the stored frame, 0 if not stored'),
                 'warnings' => new quizaccess_invigilator_external_warnings()
             )
         );
     }
 
     /**
-     * Turn a "data:video/webm;base64,...." string into the raw bytes it holds.
+     * Turn a "data:image/jpeg;base64,...." string into the raw bytes it holds.
      *
      * @param string $dataurl
      * @return string the decoded data, or an empty string if the input was not usable.

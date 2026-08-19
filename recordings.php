@@ -16,7 +16,7 @@
 /**
  * Screen recording report for the quizaccess_invigilator plugin.
  *
- * Lists the recording sessions of a quiz and plays the segments of one session back to back.
+ * Lists the capture sessions of a quiz and plays the frames of one session as a time lapse.
  *
  * @package   quizaccess_invigilator
  * @copyright 2021 Brain Station 23
@@ -72,57 +72,90 @@ if (!recording_manager::is_enabled()) {
 
 if ($sessionid) {
     // Playback of a single session.
-    $segments = recording_manager::get_segments($cmid, $sessionid);
+    $frames = recording_manager::get_frames($cmid, $sessionid);
 
-    if (empty($segments)) {
+    if (empty($frames)) {
         echo $OUTPUT->notification(get_string('norecordings', 'quizaccess_invigilator'), 'notifymessage');
         echo $OUTPUT->single_button($baseurl, get_string('back'), 'get');
         echo $OUTPUT->footer();
         die();
     }
 
-    $first = reset($segments);
+    $first = reset($frames);
     $student = core_user::get_user($first->userid);
     $playlist = [];
-    $totalduration = 0;
-    foreach ($segments as $segment) {
-        $totalduration += $segment->duration;
+    $covered = 0;
+    foreach ($frames as $frame) {
+        $covered += $frame->duration;
         $playlist[] = [
-            'url' => recording_manager::get_segment_url($context->id, $segment->id, $segment->filename)->out(false),
-            'label' => userdate($segment->timecreated, get_string('strftimedatetimeaccurate', 'langconfig')),
-            'duration' => (int)$segment->duration,
+            'url' => recording_manager::get_frame_url($context->id, $frame->id, $frame->filename)->out(false),
+            'label' => userdate($frame->timecreated, get_string('strftimetime', 'langconfig')),
+            'time' => userdate($frame->timecreated),
         ];
     }
 
     echo $OUTPUT->heading(fullname($student), 3);
     echo html_writer::tag('p', get_string('recordingsessionsummary', 'quizaccess_invigilator', (object)[
-        'segments' => count($segments),
-        'duration' => format_time($totalduration),
+        'frames' => count($frames),
+        'duration' => format_time($covered),
         'start' => userdate($first->timecreated),
     ]));
 
     echo html_writer::start_div('invigilator-player-wrapper');
-    echo html_writer::tag('video', '', [
-        'id' => 'invigilator-player',
-        'class' => 'invigilator-player',
-        'controls' => 'controls',
-        'preload' => 'metadata',
-        'playsinline' => 'playsinline',
+
+    echo html_writer::empty_tag('img', [
+        'id' => 'invigilator-player-frame',
+        'class' => 'invigilator-player-frame',
+        'src' => $playlist[0]['url'],
+        'alt' => get_string('recordingsreport', 'quizaccess_invigilator'),
     ]);
+
+    // Controls: play or pause, step by one frame, and how fast the frames are shown.
+    $controls = html_writer::tag('button', get_string('player:play', 'quizaccess_invigilator'), [
+        'id' => 'invigilator-player-toggle', 'type' => 'button', 'class' => 'btn btn-primary btn-sm']);
+    $controls .= ' ' . html_writer::tag('button', get_string('player:previous', 'quizaccess_invigilator'), [
+        'id' => 'invigilator-player-prev', 'type' => 'button', 'class' => 'btn btn-secondary btn-sm']);
+    $controls .= ' ' . html_writer::tag('button', get_string('player:next', 'quizaccess_invigilator'), [
+        'id' => 'invigilator-player-next', 'type' => 'button', 'class' => 'btn btn-secondary btn-sm']);
+
+    $speedoptions = [];
+    foreach ([1, 2, 4, 8] as $fps) {
+        $speedoptions[$fps] = get_string('player:fps', 'quizaccess_invigilator', $fps);
+    }
+    $controls .= ' ' . html_writer::label(get_string('player:speed', 'quizaccess_invigilator'),
+        'invigilator-player-speed', true, ['class' => 'ml-2 mr-1']);
+    $controls .= html_writer::select($speedoptions, 'invigilatorplayerspeed', 2, false,
+        ['id' => 'invigilator-player-speed', 'class' => 'custom-select']);
+
+    echo html_writer::div($controls, 'invigilator-player-controls');
+
+    echo html_writer::empty_tag('input', [
+        'type' => 'range',
+        'id' => 'invigilator-player-seek',
+        'class' => 'invigilator-player-seek',
+        'min' => 0,
+        'max' => count($playlist) - 1,
+        'value' => 0,
+        'step' => 1,
+        'aria-label' => get_string('recordingframes', 'quizaccess_invigilator'),
+    ]);
+
     echo html_writer::div('', 'invigilator-player-status', ['id' => 'invigilator-player-status']);
+
     echo html_writer::start_tag('ol', ['id' => 'invigilator-player-list', 'class' => 'invigilator-player-list']);
     foreach ($playlist as $index => $item) {
         echo html_writer::tag('li',
-            html_writer::link('#', $item['label'] . ' (' . format_time($item['duration']) . ')',
-                ['data-invigilator-segment' => $index]),
+            html_writer::link('#', $item['label'], ['data-invigilator-frame' => $index]),
             ['class' => 'invigilator-player-item']);
     }
     echo html_writer::end_tag('ol');
     echo html_writer::end_div();
 
     $PAGE->requires->js_call_amd('quizaccess_invigilator/recordingplayer', 'init', [[
-        'segments' => $playlist,
-        'playingnow' => get_string('playingsegment', 'quizaccess_invigilator'),
+        'frames' => $playlist,
+        'playingnow' => get_string('playingframe', 'quizaccess_invigilator'),
+        'playlabel' => get_string('player:play', 'quizaccess_invigilator'),
+        'pauselabel' => get_string('player:pause', 'quizaccess_invigilator'),
     ]]);
 
     echo $OUTPUT->single_button($baseurl, get_string('back'), 'get');
@@ -142,13 +175,13 @@ if (empty($sessions)) {
 }
 
 $table = new flexible_table('invigilator-recordings-' . $courseid . '-' . $cmid);
-$table->define_columns(['fullname', 'email', 'started', 'duration', 'segments', 'size', 'actions']);
+$table->define_columns(['fullname', 'email', 'started', 'duration', 'frames', 'size', 'actions']);
 $table->define_headers([
     get_string('user'),
     get_string('email'),
     get_string('recordingstart', 'quizaccess_invigilator'),
     get_string('recordingduration', 'quizaccess_invigilator'),
-    get_string('recordingsegments', 'quizaccess_invigilator'),
+    get_string('recordingframes', 'quizaccess_invigilator'),
     get_string('recordingsize', 'quizaccess_invigilator'),
     get_string('actions', 'quizaccess_invigilator'),
 ]);
@@ -180,7 +213,7 @@ foreach ($sessions as $session) {
         s($session->email),
         userdate($session->timestart),
         format_time((int)$session->duration),
-        (int)$session->segments,
+        (int)$session->frames,
         display_size((int)$session->filesize),
         $actions,
     ]);

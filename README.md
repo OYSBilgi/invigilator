@@ -9,14 +9,14 @@ Before starting the quiz, it will ask for screenshare permission. By accepting t
 
 ## Features
 - Capture screenshot of entire screen.
-- Record the shared screen as video for the whole attempt, stored as short standalone segments.
-- Play a whole recording session back in the browser, segment after segment, as if it were one video.
+- Sample the shared screen into a capture session: one small image every few seconds for the whole attempt.
+- Play a session back in the browser as a time lapse, with speed control, scrubbing and a frame list.
 - Can't access quiz if the user does not allow the screenshare
 - Admin report and check any suspicious activity
 - It will work with existing Questions Bank and Quizes
 - Webservice API for external call
 - Images are stored in Moodledata as a small png image
-- Scheduled clean up of recordings older than the retention period
+- Scheduled clean up of captured frames older than the retention period
 - English and Turkish language packs
 
 ## Requirements
@@ -25,46 +25,50 @@ Before starting the quiz, it will ask for screenshare permission. By accepting t
   with the pre 4.2 `quiz_access_rule_base` / `external_api` classes and with the `mod_quiz` and
   `core_external` namespaced classes introduced in Moodle 4.2.
 - PHP 7.4 or later, with the GD extension for the timestamp drawn on screenshots.
-- A browser that supports `getDisplayMedia` and `MediaRecorder`: current Chrome, Edge or Firefox.
-  Where `MediaRecorder` is missing, screenshots keep working and only the video recording is skipped.
+- A browser that supports `getDisplayMedia` and canvas image export: current Chrome, Edge or Firefox.
 
-## Screen recording
+## Screen capture (time lapse)
 
 While a student attempts the quiz, the invigilator window keeps the screen share open and does two
-things at once: it grabs a screenshot every `screenshotdelay` seconds, and it records video.
+things at once: it grabs a screenshot every `screenshotdelay` seconds through the original
+screenshot pipeline, and it samples the screen into a capture session.
 
-The recording is not one large file. The browser restarts its recorder every `recordingsegment`
-seconds, so every segment that reaches the server is a complete, playable file on its own. That
-keeps browser memory flat over a long exam, uploads spread out evenly, and a crash or a closed
-window only ever costs the segment that was in progress.
+Video of a whole exam runs to hundreds of megabytes per student, so the session is not filmed. The
+screen is sampled instead: one compressed JPEG every `recordinginterval` seconds, every frame of an
+attempt sharing a session id. The report plays the frames of a session back in order, which watches
+like a time lapse of the attempt at a fraction of the storage. A dropped connection only ever costs
+a single frame.
 
 ### Settings
 
-Site administration -> Plugins -> Activity modules -> Quiz -> Invigilator:
+Site administration -> Plugins -> Activity modules -> Quiz -> Invigilator. The interval and the
+frame size are the two values worth tuning for your storage budget:
 
 | Setting | Default | What it does |
 | --- | --- | --- |
-| `enablerecording` | Yes | Record video in addition to the screenshots. |
-| `recordingsegment` | 60 | Seconds of video per uploaded segment. |
-| `recordingwidth` | 1280 | The shared screen is scaled down to at most this width. |
-| `recordingframerate` | 5 | Frames per second. Five is enough to follow what a student does. |
-| `recordingbitrate` | 300 | Target bitrate in kbps. |
-| `recordingmaxsize` | 10 | Segments larger than this many MB are rejected. |
-| `recordingretention` | 0 | Days to keep recordings. 0 keeps them until deleted by hand. |
+| `enablerecording` | Yes | Sample the screen in addition to the screenshots. |
+| `recordinginterval` | 10 | Seconds between two captured frames. |
+| `recordingwidth` | 1280 | Frames are scaled down to at most this width. |
+| `recordingquality` | 60 | JPEG quality of each frame, 1 to 100. |
+| `recordingmaxsize` | 2 | Frames larger than this many MB are rejected. |
+| `recordingretention` | 0 | Days to keep frames. 0 keeps them until deleted by hand. |
 
-Segments are uploaded base64 encoded through the `quizaccess_invigilator_send_recording` web
-service, so the payload is about a third larger than the file. Keep `recordingmaxsize` below the
-`post_max_size` and `upload_max_filesize` of the web server. With the defaults a 60 second segment
-is roughly 2 MB.
+With the defaults a frame is roughly 100-150 KB, so a one hour attempt costs about 40 MB. Doubling
+the interval halves that; dropping the width to 960 px roughly halves it again.
 
-Recordings older than `recordingretention` days are deleted by the
+Frames are uploaded base64 encoded through the `quizaccess_invigilator_send_frame` web service, so
+the payload is about a third larger than the image. Keep `recordingmaxsize` below the
+`post_max_size` of the web server.
+
+Frames older than `recordingretention` days are deleted by the
 `quizaccess_invigilator\task\cleanup_recordings` scheduled task, which runs nightly.
 
-### Watching a recording
+### Watching a capture session
 
 From the quiz page, staff with the `quizaccess/invigilator:viewrecording` capability get a
-**View screen recordings** button, which lists one row per recording session. Playing a session
-loads the segments one after another, and the segment list on the side jumps to any point in time.
+**View screen captures** button, which lists one row per session. Opening a session gives a player
+that steps through the frames at 1 to 8 frames per second, with a scrub bar, single frame stepping
+and a time stamped frame list to jump anywhere in the attempt.
 `quizaccess/invigilator:deleterecording` allows deleting a whole session.
 
 ### Capabilities
@@ -81,9 +85,9 @@ loads the segments one after another, and the segment list on the side jumps to 
 
 ### Privacy
 
-Screenshots and recordings are personal data. Both are declared to the privacy API, are removed
-when a user or a course module is deleted, and can be purged on a schedule with the retention
-setting. Tell your students what is recorded before you switch this on.
+Screenshots and captured frames are personal data. Both are declared to the privacy API, are
+removed when a user or a course module is deleted, and can be purged on a schedule with the
+retention setting. Tell your students what is captured before you switch this on.
 
 ### JavaScript build files
 

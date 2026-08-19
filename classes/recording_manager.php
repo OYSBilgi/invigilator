@@ -31,11 +31,12 @@ use stdClass;
 defined('MOODLE_INTERNAL') || die();
 
 /**
- * Stores and retrieves the screen recording segments captured during a quiz attempt.
+ * Stores and retrieves the screen frames captured during a quiz attempt.
  *
- * A recording is not kept as one big file. The browser restarts its MediaRecorder every
- * few seconds, so every segment is a standalone playable file. That keeps memory usage flat,
- * survives a browser crash and lets the report play the segments back one after another.
+ * Video of a whole exam is far too large to keep, so the screen is sampled instead: one
+ * compressed image every few seconds, all frames of an attempt sharing a session id. The
+ * report plays the frames of a session back in order, which watches like a time lapse of
+ * the attempt while costing a fraction of the storage a video would.
  *
  * @package    quizaccess_invigilator
  * @copyright  2021 Brain Station 23
@@ -43,39 +44,38 @@ defined('MOODLE_INTERNAL') || die();
  */
 class recording_manager {
 
-    /** @var string Table holding one row per stored segment. */
+    /** @var string Table holding one row per stored frame. */
     const TABLE = 'quizaccess_invigilator_rec';
 
-    /** @var string File area the segments are stored in. */
+    /** @var string File area the frames are stored in. */
     const FILEAREA = 'recording';
 
     /** @var array Fallbacks used until the admin settings have been saved for the first time. */
     const DEFAULTS = [
         'enablerecording' => 1,
-        'recordingsegment' => 60,
+        'recordinginterval' => 10,
         'recordingwidth' => 1280,
-        'recordingframerate' => 5,
-        'recordingbitrate' => 300,
-        'recordingmaxsize' => 10,
+        'recordingquality' => 60,
+        'recordingmaxsize' => 2,
         'recordingretention' => 0,
     ];
 
     /** @var array Mime types we accept from the browser, mapped to a file extension. */
     const MIMETYPES = [
-        'video/webm' => 'webm',
-        'video/x-matroska' => 'mkv',
-        'video/mp4' => 'mp4',
+        'image/jpeg' => 'jpg',
+        'image/webp' => 'webp',
+        'image/png' => 'png',
     ];
 
     /**
-     * Work out the base mime type (without the codec part) the browser reported.
+     * Work out the base mime type the browser reported.
      *
-     * @param string $mimetype for example "video/webm;codecs=vp9".
-     * @return string a mime type we know about, defaulting to video/webm.
+     * @param string $mimetype for example "image/jpeg".
+     * @return string a mime type we know about, defaulting to image/jpeg.
      */
     public static function normalise_mimetype(string $mimetype): string {
         $base = strtolower(trim(explode(';', $mimetype)[0]));
-        return isset(self::MIMETYPES[$base]) ? $base : 'video/webm';
+        return isset(self::MIMETYPES[$base]) ? $base : 'image/jpeg';
     }
 
     /**
@@ -103,11 +103,11 @@ class recording_manager {
     }
 
     /**
-     * Largest segment we accept, in bytes.
+     * Largest frame we accept, in bytes.
      *
      * @return int
      */
-    public static function get_max_segment_size(): int {
+    public static function get_max_frame_size(): int {
         $configured = self::get_setting('recordingmaxsize');
         if ($configured <= 0) {
             $configured = self::DEFAULTS['recordingmaxsize'];
@@ -116,20 +116,20 @@ class recording_manager {
     }
 
     /**
-     * Store one recording segment and return the row it was logged as.
+     * Store one captured frame and return the row it was logged as.
      *
      * @param int $courseid
      * @param int $cmid course module id of the quiz.
      * @param int $quizid
      * @param int $userid the user being recorded.
-     * @param string $sessionid groups all segments of one attempt together.
-     * @param int $sequence zero based position of this segment in the session.
+     * @param string $sessionid groups all frames of one attempt together.
+     * @param int $sequence zero based position of this frame in the session.
      * @param string $mimetype mime type reported by the browser.
-     * @param int $duration length of the segment in seconds.
-     * @param string $binary the raw segment data.
+     * @param int $duration seconds this frame stands for, that is the capture interval.
+     * @param string $binary the raw image data.
      * @return stdClass the stored record, with ->recording holding the pluginfile url.
      */
-    public static function store_segment(int $courseid, int $cmid, int $quizid, int $userid, string $sessionid,
+    public static function store_frame(int $courseid, int $cmid, int $quizid, int $userid, string $sessionid,
             int $sequence, string $mimetype, int $duration, string $binary): stdClass {
         global $DB;
 
@@ -151,7 +151,7 @@ class recording_manager {
         $record->timecreated = time();
         $record->id = $DB->insert_record(self::TABLE, $record, true);
 
-        $record->filename = 'recording-' . $sessionid . '-' . str_pad((string)$sequence, 5, '0', STR_PAD_LEFT)
+        $record->filename = 'frame-' . $sessionid . '-' . str_pad((string)$sequence, 5, '0', STR_PAD_LEFT)
             . '.' . self::extension_for($mimetype);
 
         $filerecord = (object)[
@@ -174,7 +174,7 @@ class recording_manager {
         }
         $fs->create_file_from_string($filerecord, $binary);
 
-        $record->recording = self::get_segment_url($context->id, $record->id, $record->filename)->out(false);
+        $record->recording = self::get_frame_url($context->id, $record->id, $record->filename)->out(false);
 
         $DB->update_record(self::TABLE, $record);
 
@@ -182,14 +182,14 @@ class recording_manager {
     }
 
     /**
-     * Url the given segment is served from.
+     * Url the given frame is served from.
      *
      * @param int $contextid
      * @param int $itemid
      * @param string $filename
      * @return moodle_url
      */
-    public static function get_segment_url(int $contextid, int $itemid, string $filename): moodle_url {
+    public static function get_frame_url(int $contextid, int $itemid, string $filename): moodle_url {
         return moodle_url::make_pluginfile_url($contextid, 'quizaccess_invigilator', self::FILEAREA,
             $itemid, '/', $filename, false);
     }
@@ -199,7 +199,7 @@ class recording_manager {
      *
      * @param int $cmid course module id of the quiz.
      * @param int|null $userid limit to a single user, or null for everybody.
-     * @return array of objects with sessionid, userid, user name fields, segments, duration, filesize, timestart, timeend.
+     * @return array of objects with sessionid, userid, user name fields, frames, duration, filesize, timestart, timeend.
      */
     public static function get_sessions(int $cmid, ?int $userid = null): array {
         global $DB;
@@ -215,7 +215,7 @@ class recording_manager {
         $namefields = \core_user\fields::get_name_fields();
         $usernamefields = 'u.' . implode(', u.', $namefields) . ', u.email';
         $sql = "SELECT r.sessionid, r.userid, r.courseid, r.quizid, $usernamefields,
-                       COUNT(r.id) AS segments,
+                       COUNT(r.id) AS frames,
                        SUM(r.duration) AS duration,
                        SUM(r.filesize) AS filesize,
                        MIN(r.timecreated) AS timestart,
@@ -230,24 +230,24 @@ class recording_manager {
     }
 
     /**
-     * All segments of one session in playback order.
+     * All frames of one session in playback order.
      *
      * @param int $cmid
      * @param string $sessionid
      * @return array of records from the recording table.
      */
-    public static function get_segments(int $cmid, string $sessionid): array {
+    public static function get_frames(int $cmid, string $sessionid): array {
         global $DB;
 
         return $DB->get_records(self::TABLE, ['cmid' => $cmid, 'sessionid' => $sessionid], 'sequence ASC, id ASC');
     }
 
     /**
-     * Delete every segment of one session, both the rows and the stored files.
+     * Delete every frame of one session, both the rows and the stored files.
      *
      * @param string $sessionid
      * @param int $cmid
-     * @return int number of segments deleted.
+     * @return int number of frames deleted.
      */
     public static function delete_session(string $sessionid, int $cmid): int {
         global $DB;
@@ -261,7 +261,7 @@ class recording_manager {
      *
      * @param int $cmid
      * @param int $userid
-     * @return int number of segments deleted.
+     * @return int number of frames deleted.
      */
     public static function delete_for_user(int $cmid, int $userid): int {
         global $DB;
@@ -274,7 +274,7 @@ class recording_manager {
      * Delete every recording stored for one quiz.
      *
      * @param int $cmid
-     * @return int number of segments deleted.
+     * @return int number of frames deleted.
      */
     public static function delete_for_cm(int $cmid): int {
         global $DB;
@@ -287,7 +287,7 @@ class recording_manager {
      * Delete recordings that are older than the configured retention period.
      *
      * @param int|null $retentiondays overrides the configured value when given.
-     * @return int number of segments deleted.
+     * @return int number of frames deleted.
      */
     public static function purge_expired(?int $retentiondays = null): int {
         global $DB;
@@ -310,7 +310,7 @@ class recording_manager {
      * Delete the given recording rows together with their stored files.
      *
      * @param array $records records from the recording table.
-     * @return int number of segments deleted.
+     * @return int number of frames deleted.
      */
     protected static function delete_records(array $records): int {
         global $DB;
@@ -338,7 +338,7 @@ class recording_manager {
     }
 
     /**
-     * Whether screen recording is switched on for the site.
+     * Whether screen capture is switched on for the site.
      *
      * @return bool
      */

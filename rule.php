@@ -359,7 +359,7 @@ class quizaccess_invigilator extends quizaccess_invigilator_rule_base
     }
 
     /**
-     * Everything the browser side recorder needs to know, ready to be handed to the AMD module.
+     * Everything the browser side frame capture needs to know, ready to be handed to the AMD module.
      *
      * @return array
      * @throws coding_exception
@@ -369,10 +369,9 @@ class quizaccess_invigilator extends quizaccess_invigilator_rule_base
 
         $config = [];
         $config["enablerecording"] = (int)$manager::is_enabled();
-        $config["recordingsegment"] = max(5, $manager::get_setting('recordingsegment'));
+        $config["recordinginterval"] = max(2, $manager::get_setting('recordinginterval'));
         $config["recordingwidth"] = max(320, $manager::get_setting('recordingwidth'));
-        $config["recordingframerate"] = max(1, $manager::get_setting('recordingframerate'));
-        $config["recordingbitrate"] = max(50, $manager::get_setting('recordingbitrate'));
+        $config["recordingquality"] = min(100, max(10, $manager::get_setting('recordingquality')));
         $config["recordingmaxsize"] = max(1, $manager::get_setting('recordingmaxsize'));
         $config["sessionid"] = self::generate_session_id();
         $config["recordingunsupported"] = get_string('alert:recordingunsupported', 'quizaccess_invigilator');
@@ -382,7 +381,7 @@ class quizaccess_invigilator extends quizaccess_invigilator_rule_base
     }
 
     /**
-     * Random id that groups every recording segment of one attempt.
+     * Random id that groups every captured frame of one attempt.
      *
      * @return string 32 lower case hex characters.
      */

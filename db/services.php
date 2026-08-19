@@ -34,10 +34,10 @@ $functions = array(
         'capabilities' => 'quizaccess/invigilator:sendscreenshot',
         'services'      => array(MOODLE_OFFICIAL_MOBILE_SERVICE)
     ),
-    'quizaccess_invigilator_send_recording' => array(
+    'quizaccess_invigilator_send_frame' => array(
         'classname' => 'quizaccess_invigilator_external',
-        'methodname' => 'send_recording',
-        'description' => 'Send one screen recording segment of the given session.',
+        'methodname' => 'send_frame',
+        'description' => 'Send one captured screen frame of the given session.',
         'type' => 'write',
         'ajax'        => true,
         'capabilities' => 'quizaccess/invigilator:sendrecording',

@@ -14,15 +14,15 @@
 // along with MailTest.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Asks for the screen share, then keeps taking screenshots and recording the screen
- * for as long as this window stays open. The quiz itself runs in the window this one opens.
+ * Asks for the screen share, then keeps sampling the shared screen for as long as this
+ * window stays open. The quiz itself runs in the window this one opens.
  *
  * @module     quizaccess_invigilator/startattempt
  * @copyright  2021 Brain Station 23
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-define(['jquery', 'core/ajax', 'core/notification', 'quizaccess_invigilator/recorder'],
-    function ($, Ajax, Notification, Recorder) {
+define(['jquery', 'core/ajax', 'core/notification', 'quizaccess_invigilator/framecapture'],
+    function ($, Ajax, Notification, FrameCapture) {
         return {
             setup: function (props) {
                 window.invigilatorShareState = document.getElementById('invigilator_share_state');
@@ -41,14 +41,13 @@ define(['jquery', 'core/ajax', 'core/notification', 'quizaccess_invigilator/reco
                         mediaSource: "screen",
                         displaySurface: "monitor",
                         logicalSurface: true,
-                        cursor: "always",
-                        frameRate: {max: props.recordingframerate || 5}
+                        cursor: "always"
                     },
                     audio: false
                 };
 
                 /**
-                 * Show the recording state to the student, when the page has somewhere to put it.
+                 * Show the capture state to the student, when the page has somewhere to put it.
                  *
                  * @param {string} message
                  */
@@ -59,15 +58,13 @@ define(['jquery', 'core/ajax', 'core/notification', 'quizaccess_invigilator/reco
                 }
 
                 /**
-                 * Start recording the shared screen, unless the site turned recording off.
-                 *
-                 * @param {MediaStream} stream
+                 * Start sampling the shared screen, unless the site turned capture off.
                  */
-                function startRecording(stream) {
+                function startFrameCapture() {
                     if (!props.enablerecording) {
                         return;
                     }
-                    if (!Recorder.start(stream, props)) {
+                    if (!FrameCapture.start(videoElem, props)) {
                         showRecordingStatus(props.recordingunsupported);
                         return;
                     }
@@ -98,7 +95,7 @@ define(['jquery', 'core/ajax', 'core/notification', 'quizaccess_invigilator/reco
                             }
                         };
 
-                        startRecording(stream);
+                        startFrameCapture();
 
                         // Immediately set all status values to valid
                         setTimeout(function () {
@@ -140,8 +137,8 @@ define(['jquery', 'core/ajax', 'core/notification', 'quizaccess_invigilator/reco
                         var screenoff = document.getElementById('invigilator_screen_off_flag').value;
 
                         if (screenoff == "1") {
-                            // Flush the segment being recorded before the tracks go away.
-                            Recorder.stop();
+                            // Take a final frame before the tracks go away.
+                            FrameCapture.stop();
                             let tracks = currentStream.getTracks();
                             tracks.forEach(track => track.stop());
                             console.log('Video stopped');
@@ -215,19 +212,19 @@ define(['jquery', 'core/ajax', 'core/notification', 'quizaccess_invigilator/reco
                     return newHeight;
                 }
 
-                // The quiz window tells us when the attempt is over so the last segment is not lost.
+                // The quiz window tells us when the attempt is over so a final frame is taken.
                 window.addEventListener('message', function (event) {
                     if (event.origin !== window.location.origin) {
                         return;
                     }
                     if (event.data && event.data.invigilator === 'attemptfinished') {
-                        Recorder.stop();
+                        FrameCapture.stop();
                     }
                 });
 
-                // Closing this window ends the recording; the segment in progress is flushed here.
+                // Closing this window ends the capture.
                 window.addEventListener('beforeunload', function () {
-                    Recorder.stop();
+                    FrameCapture.stop();
                 });
 
                 var windowState = setInterval(updateWindowStatus, 1000);

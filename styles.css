@@ -219,16 +219,31 @@ body.lb-disable-scrolling {
     /* stylelint-enable */
     opacity: 1;
 }
-/* Screen recording player. */
+/* Screen capture player. */
 .invigilator-player-wrapper {
     margin: 1rem 0;
 }
 
-.invigilator-player-wrapper .invigilator-player {
+.invigilator-player-frame {
+    display: block;
     width: 100%;
     max-width: 960px;
     background: #000;
     border-radius: 4px;
+}
+
+.invigilator-player-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem;
+    margin: 0.5rem 0;
+}
+
+.invigilator-player-seek {
+    display: block;
+    width: 100%;
+    max-width: 960px;
 }
 
 .invigilator-player-status {

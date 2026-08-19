@@ -80,54 +80,58 @@ $string['invigilator:sendscreenshot'] = 'Send screenshots while attempting a qui
 $string['invigilator:getscreenshot'] = 'View the screenshots captured during a quiz';
 $string['invigilator:viewreport'] = 'View the invigilator report';
 $string['invigilator:deletescreenshot'] = 'Delete captured screenshots';
-$string['invigilator:sendrecording'] = 'Send screen recordings while attempting a quiz';
-$string['invigilator:viewrecording'] = 'View the screen recordings captured during a quiz';
-$string['invigilator:deleterecording'] = 'Delete captured screen recordings';
+$string['invigilator:sendrecording'] = 'Send captured screen frames while attempting a quiz';
+$string['invigilator:viewrecording'] = 'View the screen frames captured during a quiz';
+$string['invigilator:deleterecording'] = 'Delete captured screen frames';
 
 // Screen recording settings.
 $string['setting:recordingheading'] = 'Screen recording';
-$string['setting:recordingheading_desc'] = 'Besides the periodic screenshots, the shared screen can be recorded as video. The recording is stored as short segments so a lost connection or a closed browser only costs the segment being recorded at the time.';
-$string['setting:enablerecording'] = 'Enable screen recording';
-$string['setting:enablerecording_desc'] = 'If enabled, the shared screen is recorded as video for the whole attempt, in addition to the screenshots.';
-$string['setting:recordingsegment'] = 'Segment length (seconds)';
-$string['setting:recordingsegment_desc'] = 'How long each recorded segment is before it is uploaded. Shorter segments upload more often and lose less if the browser crashes; longer segments create fewer files.';
-$string['setting:recordingwidth'] = 'Recording width (pixels)';
-$string['setting:recordingwidth_desc'] = 'The shared screen is scaled down to at most this width before it is recorded. Smaller values produce much smaller files.';
-$string['setting:recordingframerate'] = 'Frame rate (frames per second)';
-$string['setting:recordingframerate_desc'] = 'Frames per second to record. Five is plenty to see what a student is doing and keeps the files small.';
-$string['setting:recordingbitrate'] = 'Video bitrate (kbps)';
-$string['setting:recordingbitrate_desc'] = 'Target bitrate of the recording. Around 300 kbps is enough for readable screen content.';
-$string['setting:recordingmaxsize'] = 'Maximum segment size (MB)';
-$string['setting:recordingmaxsize_desc'] = 'Segments larger than this are rejected. Keep this below the PHP post_max_size of the server, remembering that the upload is base64 encoded and therefore about a third larger than the file itself.';
-$string['setting:recordingretention'] = 'Keep recordings for (days)';
-$string['setting:recordingretention_desc'] = 'Recordings older than this are deleted by a scheduled task. Use 0 to keep recordings until they are deleted by hand.';
+$string['setting:recordingheading_desc'] = 'Besides the periodic screenshots, the shared screen can be sampled for the whole attempt: one compressed image every few seconds, played back in the report as a time lapse. Sampling costs a fraction of the storage a video would.';
+$string['setting:enablerecording'] = 'Enable screen capture';
+$string['setting:enablerecording_desc'] = 'If enabled, the shared screen is sampled for the whole attempt and the frames are played back as a time lapse in the report.';
+$string['setting:recordingwidth'] = 'Frame width (pixels)';
+$string['setting:recordingwidth_desc'] = 'Each frame is scaled down to at most this width before it is uploaded. Smaller values produce much smaller files.';
+$string['setting:recordingmaxsize'] = 'Maximum frame size (MB)';
+$string['setting:recordingmaxsize_desc'] = 'Frames larger than this are rejected. Keep this below the PHP post_max_size of the server, remembering that the upload is base64 encoded and therefore about a third larger than the image itself.';
+$string['setting:recordingretention'] = 'Keep captures for (days)';
+$string['setting:recordingretention_desc'] = 'Frames older than this are deleted by a scheduled task. Use 0 to keep them until they are deleted by hand.';
 
 // Recording report.
-$string['recordingsreport'] = 'View screen recordings';
-$string['recordingsreportdesc'] = 'Every recording session of this quiz. A session holds all the segments recorded during one attempt and is played back as one video.';
-$string['norecordings'] = 'No screen recordings have been stored for this quiz yet.';
+$string['recordingsreport'] = 'View screen captures';
+$string['recordingsreportdesc'] = 'Every capture session of this quiz. A session holds all the frames captured during one attempt and is played back as a time lapse.';
+$string['norecordings'] = 'No screen captures have been stored for this quiz yet.';
 $string['recordingstart'] = 'Started';
 $string['recordingduration'] = 'Duration';
-$string['recordingsegments'] = 'Segments';
 $string['recordingsize'] = 'Size';
 $string['recordingplay'] = 'Play';
-$string['recordingdeleteconfirm'] = 'Delete this whole recording session?';
-$string['recordingdeleted'] = '{$a} recording segments deleted.';
-$string['recordingsessionsummary'] = '{$a->segments} segments, {$a->duration} in total, starting {$a->start}.';
-$string['playingsegment'] = 'Playing segment {$a->number} of {$a->total} ({$a->time})';
+$string['recordingdeleteconfirm'] = 'Delete this whole capture session?';
+$string['recordingdeleted'] = '{$a} frames deleted.';
+$string['recordingsessionsummary'] = '{$a->frames} frames covering {$a->duration}, starting {$a->start}.';
 
 // Recording messages.
-$string['alert:recordingunsupported'] = 'This browser cannot record the screen. Screenshots are still being taken. Please use an up to date Chrome, Edge or Firefox.';
-$string['alert:recordingfailed'] = 'The screen recording stopped unexpectedly. Please keep this window open for the whole attempt.';
-$string['warning:recordingdisabled'] = 'Screen recording is switched off for this site.';
-$string['warning:emptyrecording'] = 'The recording segment was empty and has been discarded.';
-$string['warning:recordingtoolarge'] = 'The recording segment is larger than the {$a} limit and has been discarded.';
+$string['alert:recordingunsupported'] = 'This browser cannot capture the screen. Please use an up to date Chrome, Edge or Firefox.';
+$string['alert:recordingfailed'] = 'The screen capture stopped unexpectedly. Please keep this window open for the whole attempt.';
+$string['warning:recordingdisabled'] = 'Screen capture is switched off for this site.';
+$string['warning:emptyrecording'] = 'The captured frame was empty and has been discarded.';
+$string['warning:recordingtoolarge'] = 'The captured frame is larger than the {$a} limit and has been discarded.';
 
 // Scheduled task.
-$string['task:cleanuprecordings'] = 'Delete expired invigilator screen recordings';
+$string['task:cleanuprecordings'] = 'Delete expired invigilator screen captures';
 
 // Privacy.
-$string['privacy:metadata:quizaccess_invigilator_rec'] = 'Stores the screen recording segments captured during a quiz attempt';
+$string['privacy:metadata:quizaccess_invigilator_rec'] = 'Stores the screen frames captured during a quiz attempt';
 $string['privacy:metadata:quizaccess_invigilator_rec:userid'] = 'The ID of the user who was recorded';
-$string['privacy:metadata:quizaccess_invigilator_rec:recording'] = 'Link to a recorded segment of the screen';
-$string['privacy:metadata:quizaccess_invigilator_rec:timecreated'] = 'The time the segment was recorded';
+$string['privacy:metadata:quizaccess_invigilator_rec:recording'] = 'Link to a captured frame of the screen';
+$string['privacy:metadata:quizaccess_invigilator_rec:timecreated'] = 'The time the frame was captured';
+$string['setting:recordinginterval'] = 'Capture interval (seconds)';
+$string['setting:recordinginterval_desc'] = 'How many seconds pass between two captured frames. Ten seconds is a good balance between detail and storage.';
+$string['setting:recordingquality'] = 'Image quality (1-100)';
+$string['setting:recordingquality_desc'] = 'JPEG quality of each frame. Around 60 keeps screen text readable at a fraction of the size.';
+$string['recordingframes'] = 'Frames';
+$string['playingframe'] = 'Frame {$a->number} of {$a->total} ({$a->time})';
+$string['player:play'] = 'Play';
+$string['player:pause'] = 'Pause';
+$string['player:previous'] = 'Previous frame';
+$string['player:next'] = 'Next frame';
+$string['player:speed'] = 'Speed';
+$string['player:fps'] = '{$a} frames per second';

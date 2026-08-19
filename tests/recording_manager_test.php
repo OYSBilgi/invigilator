@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with MailTest.  If not, see <http://www.gnu.org/licenses/>.
 /**
- * Tests for the screen recording storage helper.
+ * Tests for the screen frame storage helper.
  *
  * @package    quizaccess_invigilator
  * @copyright  2021 Brain Station 23
@@ -24,7 +24,7 @@
 namespace quizaccess_invigilator;
 
 /**
- * Tests for the screen recording storage helper.
+ * Tests for the screen frame storage helper.
  *
  * @package    quizaccess_invigilator
  * @copyright  2021 Brain Station 23
@@ -54,52 +54,52 @@ final class recording_manager_test extends \advanced_testcase {
     }
 
     /**
-     * Store one segment and hand back the record it produced.
+     * Store one frame and hand back the record it produced.
      *
      * @param string $sessionid
      * @param int $sequence
-     * @param string $body content of the fake segment.
+     * @param string $body content of the fake frame.
      * @return \stdClass
      */
-    protected function store(string $sessionid, int $sequence, string $body = 'segment'): \stdClass {
-        return recording_manager::store_segment(
+    protected function store(string $sessionid, int $sequence, string $body = 'frame'): \stdClass {
+        return recording_manager::store_frame(
             $this->course->id,
             $this->cm->id,
             $this->cm->instance,
             $this->student->id,
             $sessionid,
             $sequence,
-            'video/webm;codecs=vp9',
+            'image/jpeg',
             10,
             $body
         );
     }
 
     public function test_mimetypes_are_normalised(): void {
-        $this->assertEquals('video/webm', recording_manager::normalise_mimetype('video/webm;codecs=vp9'));
-        $this->assertEquals('video/mp4', recording_manager::normalise_mimetype('video/mp4'));
-        $this->assertEquals('video/webm', recording_manager::normalise_mimetype('application/octet-stream'));
-        $this->assertEquals('webm', recording_manager::extension_for('video/webm;codecs=vp8'));
+        $this->assertEquals('image/jpeg', recording_manager::normalise_mimetype('image/jpeg'));
+        $this->assertEquals('image/webp', recording_manager::normalise_mimetype('image/webp'));
+        $this->assertEquals('image/jpeg', recording_manager::normalise_mimetype('video/webm;codecs=vp9'));
+        $this->assertEquals('jpg', recording_manager::extension_for('image/jpeg'));
     }
 
     public function test_settings_fall_back_to_defaults(): void {
-        $this->assertEquals(recording_manager::DEFAULTS['recordingsegment'],
-            recording_manager::get_setting('recordingsegment'));
+        $this->assertEquals(recording_manager::DEFAULTS['recordinginterval'],
+            recording_manager::get_setting('recordinginterval'));
 
-        set_config('recordingsegment', 25, 'quizaccess_invigilator');
-        $this->assertEquals(25, recording_manager::get_setting('recordingsegment'));
+        set_config('recordinginterval', 25, 'quizaccess_invigilator');
+        $this->assertEquals(25, recording_manager::get_setting('recordinginterval'));
 
         set_config('enablerecording', 0, 'quizaccess_invigilator');
         $this->assertFalse(recording_manager::is_enabled());
     }
 
-    public function test_storing_a_segment_saves_the_file_and_the_row(): void {
+    public function test_storing_a_frame_saves_the_file_and_the_row(): void {
         global $DB;
 
         $record = $this->store('abc123', 0, 'the bytes');
 
         $this->assertGreaterThan(0, $record->id);
-        $this->assertEquals('recording-abc123-00000.webm', $record->filename);
+        $this->assertEquals('frame-abc123-00000.jpg', $record->filename);
         $this->assertEquals(strlen('the bytes'), $record->filesize);
         $this->assertStringContainsString('pluginfile.php', $record->recording);
         $this->assertTrue($DB->record_exists(recording_manager::TABLE, ['id' => $record->id]));
@@ -111,7 +111,7 @@ final class recording_manager_test extends \advanced_testcase {
         $this->assertEquals('the bytes', $file->get_content());
     }
 
-    public function test_segments_are_grouped_into_sessions(): void {
+    public function test_frames_are_grouped_into_sessions(): void {
         $this->store('sessionone', 0);
         $this->store('sessionone', 1);
         $this->store('sessiontwo', 0);
@@ -119,11 +119,14 @@ final class recording_manager_test extends \advanced_testcase {
         $sessions = recording_manager::get_sessions($this->cm->id);
         $this->assertCount(2, $sessions);
 
-        $segments = recording_manager::get_segments($this->cm->id, 'sessionone');
-        $this->assertCount(2, $segments);
-        $this->assertEquals([0, 1], array_values(array_map(function($segment) {
-            return (int)$segment->sequence;
-        }, $segments)));
+        $frames = recording_manager::get_frames($this->cm->id, 'sessionone');
+        $this->assertCount(2, $frames);
+        $this->assertEquals([0, 1], array_values(array_map(function($frame) {
+            return (int)$frame->sequence;
+        }, $frames)));
+        $this->assertEquals(3, array_sum(array_map(function($session) {
+            return (int)$session->frames;
+        }, $sessions)));
     }
 
     public function test_deleting_a_session_removes_its_files(): void {

@@ -14,8 +14,8 @@
 // along with MailTest.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Plays the segments of one recording session one after another, so a chopped up
- * recording watches like a single video.
+ * Plays the frames of one capture session in order, so a sampled attempt watches
+ * like a time lapse instead of a folder full of images.
  *
  * @module     quizaccess_invigilator/recordingplayer
  * @copyright  2021 Brain Station 23
@@ -26,86 +26,163 @@ define([], function() {
     return {
 
         /**
-         * Wire the player up to the segment list rendered by recordings.php.
+         * Wire the player up to the frame list rendered by recordings.php.
          *
-         * @param {Object} props segments and the label used for the status line.
+         * @param {Object} props frames, the status template and the button labels.
          */
         init: function(props) {
-            var video = document.getElementById('invigilator-player');
+            var image = document.getElementById('invigilator-player-frame');
             var status = document.getElementById('invigilator-player-status');
             var list = document.getElementById('invigilator-player-list');
-            var segments = props.segments || [];
+            var toggle = document.getElementById('invigilator-player-toggle');
+            var previous = document.getElementById('invigilator-player-prev');
+            var next = document.getElementById('invigilator-player-next');
+            var seek = document.getElementById('invigilator-player-seek');
+            var speed = document.getElementById('invigilator-player-speed');
+            var frames = props.frames || [];
             var current = -1;
+            var timer = null;
 
-            if (!video || !segments.length) {
+            if (!image || !frames.length) {
                 return;
             }
 
             /**
-             * Load a segment and, unless it is the very first one, start playing straight away.
+             * Keep the next frame in the browser cache so playback does not flicker.
              *
-             * @param {number} index position in the playlist.
-             * @param {boolean} autoplay
+             * @param {number} index
              */
-            var play = function(index, autoplay) {
-                if (index < 0 || index >= segments.length) {
+            var preload = function(index) {
+                if (index >= 0 && index < frames.length) {
+                    var preloader = new Image();
+                    preloader.src = frames[index].url;
+                }
+            };
+
+            /**
+             * Show one frame and bring the controls in line with it.
+             *
+             * @param {number} index position in the session.
+             */
+            var show = function(index) {
+                if (index < 0 || index >= frames.length) {
                     return;
                 }
                 current = index;
-                video.src = segments[index].url;
+                image.src = frames[index].url;
 
                 if (status) {
                     status.textContent = props.playingnow
                         .replace('{$a->number}', index + 1)
-                        .replace('{$a->total}', segments.length)
-                        .replace('{$a->time}', segments[index].label);
+                        .replace('{$a->total}', frames.length)
+                        .replace('{$a->time}', frames[index].time);
                 }
-
+                if (seek) {
+                    seek.value = index;
+                }
                 if (list) {
-                    var items = list.querySelectorAll('[data-invigilator-segment]');
+                    var items = list.querySelectorAll('[data-invigilator-frame]');
                     for (var i = 0; i < items.length; i++) {
                         items[i].parentNode.classList.toggle('current', i === index);
                     }
+                    if (items[index] && items[index].scrollIntoView) {
+                        items[index].scrollIntoView({block: 'nearest'});
+                    }
                 }
 
-                if (autoplay) {
-                    var started = video.play();
-                    if (started && typeof started.catch === 'function') {
-                        // Autoplay can be blocked; the controls still work, so this is not an error.
-                        started.catch(function() {
-                            return true;
-                        });
-                    }
+                preload(index + 1);
+            };
+
+            /**
+             * Stop the playback, leaving the current frame on screen.
+             */
+            var pause = function() {
+                if (timer) {
+                    window.clearInterval(timer);
+                    timer = null;
+                }
+                if (toggle) {
+                    toggle.textContent = props.playlabel;
                 }
             };
 
-            video.addEventListener('ended', function() {
-                if (current + 1 < segments.length) {
-                    play(current + 1, true);
-                } else if (status) {
-                    status.textContent = '';
-                }
-            });
+            /**
+             * Step through the frames at the chosen speed, starting over once the end is reached.
+             */
+            var play = function() {
+                pause();
 
-            video.addEventListener('error', function() {
-                // A single unreadable segment should not stop the playback of the rest.
-                if (current + 1 < segments.length) {
-                    play(current + 1, true);
+                if (current >= frames.length - 1) {
+                    show(0);
                 }
-            });
+
+                var framespersecond = speed ? parseInt(speed.value, 10) : 2;
+                timer = window.setInterval(function() {
+                    if (current >= frames.length - 1) {
+                        pause();
+                        return;
+                    }
+                    show(current + 1);
+                }, 1000 / (framespersecond || 1));
+
+                if (toggle) {
+                    toggle.textContent = props.pauselabel;
+                }
+            };
+
+            if (toggle) {
+                toggle.addEventListener('click', function() {
+                    if (timer) {
+                        pause();
+                    } else {
+                        play();
+                    }
+                });
+            }
+
+            if (previous) {
+                previous.addEventListener('click', function() {
+                    pause();
+                    show(current - 1);
+                });
+            }
+
+            if (next) {
+                next.addEventListener('click', function() {
+                    pause();
+                    show(current + 1);
+                });
+            }
+
+            if (seek) {
+                seek.addEventListener('input', function() {
+                    pause();
+                    show(parseInt(seek.value, 10));
+                });
+            }
+
+            if (speed) {
+                speed.addEventListener('change', function() {
+                    // Restart the timer so the new speed takes effect straight away.
+                    if (timer) {
+                        play();
+                    }
+                });
+            }
 
             if (list) {
                 list.addEventListener('click', function(event) {
-                    var link = event.target.closest('[data-invigilator-segment]');
+                    var link = event.target.closest('[data-invigilator-frame]');
                     if (!link) {
                         return;
                     }
                     event.preventDefault();
-                    play(parseInt(link.getAttribute('data-invigilator-segment'), 10), true);
+                    pause();
+                    show(parseInt(link.getAttribute('data-invigilator-frame'), 10));
                 });
             }
 
-            play(0, false);
+            show(0);
         }
     };
 });

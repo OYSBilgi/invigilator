@@ -80,54 +80,58 @@ $string['invigilator:sendscreenshot'] = 'Sınav sırasında ekran görüntüsü 
 $string['invigilator:getscreenshot'] = 'Sınav sırasında alınan ekran görüntülerini görme';
 $string['invigilator:viewreport'] = 'Gözetmen raporunu görme';
 $string['invigilator:deletescreenshot'] = 'Alınan ekran görüntülerini silme';
-$string['invigilator:sendrecording'] = 'Sınav sırasında ekran kaydı gönderme';
-$string['invigilator:viewrecording'] = 'Sınav sırasında alınan ekran kayıtlarını izleme';
-$string['invigilator:deleterecording'] = 'Alınan ekran kayıtlarını silme';
+$string['invigilator:sendrecording'] = 'Sınav sırasında yakalanan ekran karelerini gönderme';
+$string['invigilator:viewrecording'] = 'Sınav sırasında yakalanan ekran karelerini izleme';
+$string['invigilator:deleterecording'] = 'Yakalanan ekran karelerini silme';
 
 // Ekran kaydı ayarları.
 $string['setting:recordingheading'] = 'Ekran kaydı';
-$string['setting:recordingheading_desc'] = 'Belirli aralıklarla alınan ekran görüntülerine ek olarak, paylaşılan ekran video olarak da kaydedilebilir. Kayıt kısa parçalar hâlinde saklanır; böylece bağlantı koptuğunda ya da tarayıcı kapandığında yalnızca o an kaydedilen parça kaybolur.';
-$string['setting:enablerecording'] = 'Ekran kaydını etkinleştir';
-$string['setting:enablerecording_desc'] = 'Etkinleştirilirse, sınav boyunca paylaşılan ekran ekran görüntülerine ek olarak video biçiminde de kaydedilir.';
-$string['setting:recordingsegment'] = 'Parça uzunluğu (saniye)';
-$string['setting:recordingsegment_desc'] = 'Her kayıt parçasının sunucuya gönderilmeden önceki uzunluğu. Kısa parçalar daha sık yüklenir ve çökme durumunda daha az veri kaybedilir; uzun parçalar daha az dosya oluşturur.';
-$string['setting:recordingwidth'] = 'Kayıt genişliği (piksel)';
-$string['setting:recordingwidth_desc'] = 'Paylaşılan ekran kaydedilmeden önce en fazla bu genişliğe küçültülür. Küçük değerler dosya boyutunu belirgin şekilde azaltır.';
-$string['setting:recordingframerate'] = 'Kare hızı (saniyedeki kare)';
-$string['setting:recordingframerate_desc'] = 'Saniyede kaydedilecek kare sayısı. Öğrencinin ne yaptığını görmek için 5 kare/saniye yeterlidir ve dosyaları küçük tutar.';
-$string['setting:recordingbitrate'] = 'Video bit hızı (kbps)';
-$string['setting:recordingbitrate_desc'] = 'Kaydın hedef bit hızı. Ekrandaki yazıların okunabilmesi için 300 kbps civarı genellikle yeterlidir.';
-$string['setting:recordingmaxsize'] = 'En büyük parça boyutu (MB)';
-$string['setting:recordingmaxsize_desc'] = 'Bu boyutu aşan parçalar reddedilir. Yükleme base64 ile kodlandığı için dosyadan yaklaşık üçte bir oranında büyür; bu değeri sunucunuzun PHP post_max_size ayarının altında tutun.';
-$string['setting:recordingretention'] = 'Kayıtların saklanma süresi (gün)';
-$string['setting:recordingretention_desc'] = 'Bu süreden eski kayıtlar zamanlanmış görev tarafından silinir. Kayıtların elle silinene kadar durması için 0 girin.';
+$string['setting:recordingheading_desc'] = 'Belirli aralıklarla alınan ekran görüntülerine ek olarak, paylaşılan ekran sınav boyunca örneklenebilir: birkaç saniyede bir sıkıştırılmış görüntü alınır ve raporda hızlandırılmış (timelapse) biçimde izlenir. Bu yöntem videonun kapladığı yerin küçük bir kısmını kullanır.';
+$string['setting:enablerecording'] = 'Ekran yakalamayı etkinleştir';
+$string['setting:enablerecording_desc'] = 'Etkinleştirilirse, paylaşılan ekran sınav boyunca belirli aralıklarla görüntülenir ve kareler raporda hızlandırılmış biçimde oynatılır.';
+$string['setting:recordingwidth'] = 'Kare genişliği (piksel)';
+$string['setting:recordingwidth_desc'] = 'Her kare yüklenmeden önce en fazla bu genişliğe küçültülür. Küçük değerler dosya boyutunu belirgin şekilde azaltır.';
+$string['setting:recordingmaxsize'] = 'En büyük kare boyutu (MB)';
+$string['setting:recordingmaxsize_desc'] = 'Bu boyutu aşan kareler reddedilir. Yükleme base64 ile kodlandığı için görüntüden yaklaşık üçte bir oranında büyür; bu değeri sunucunuzun PHP post_max_size ayarının altında tutun.';
+$string['setting:recordingretention'] = 'Yakalanan görüntülerin saklanma süresi (gün)';
+$string['setting:recordingretention_desc'] = 'Bu süreden eski kareler zamanlanmış görev tarafından silinir. Elle silinene kadar saklamak için 0 girin.';
 
 // Kayıt raporu.
-$string['recordingsreport'] = 'Ekran kayıtlarını görüntüle';
-$string['recordingsreportdesc'] = 'Bu sınava ait tüm kayıt oturumları. Bir oturum, tek bir sınav denemesinde alınan tüm parçaları içerir ve tek bir video gibi oynatılır.';
-$string['norecordings'] = 'Bu sınav için henüz ekran kaydı saklanmamış.';
+$string['recordingsreport'] = 'Ekran yakalamalarını görüntüle';
+$string['recordingsreportdesc'] = 'Bu sınava ait tüm yakalama oturumları. Bir oturum, tek bir sınav denemesinde alınan tüm kareleri içerir ve hızlandırılmış biçimde oynatılır.';
+$string['norecordings'] = 'Bu sınav için henüz ekran yakalaması saklanmamış.';
 $string['recordingstart'] = 'Başlangıç';
 $string['recordingduration'] = 'Süre';
-$string['recordingsegments'] = 'Parça sayısı';
 $string['recordingsize'] = 'Boyut';
 $string['recordingplay'] = 'Oynat';
-$string['recordingdeleteconfirm'] = 'Bu kayıt oturumunun tamamı silinsin mi?';
-$string['recordingdeleted'] = '{$a} kayıt parçası silindi.';
-$string['recordingsessionsummary'] = '{$a->segments} parça, toplam {$a->duration}, başlangıç: {$a->start}.';
-$string['playingsegment'] = 'Oynatılan parça: {$a->number} / {$a->total} ({$a->time})';
+$string['recordingdeleteconfirm'] = 'Bu yakalama oturumunun tamamı silinsin mi?';
+$string['recordingdeleted'] = '{$a} kare silindi.';
+$string['recordingsessionsummary'] = '{$a->frames} kare, {$a->duration} süreyi kapsıyor, başlangıç: {$a->start}.';
 
 // Kayıt mesajları.
-$string['alert:recordingunsupported'] = 'Bu tarayıcı ekran kaydı yapamıyor. Ekran görüntüleri alınmaya devam ediyor. Lütfen güncel bir Chrome, Edge veya Firefox kullanın.';
-$string['alert:recordingfailed'] = 'Ekran kaydı beklenmedik şekilde durdu. Lütfen sınav boyunca bu pencereyi açık tutun.';
-$string['warning:recordingdisabled'] = 'Bu sitede ekran kaydı kapalı.';
-$string['warning:emptyrecording'] = 'Kayıt parçası boş olduğu için yok sayıldı.';
-$string['warning:recordingtoolarge'] = 'Kayıt parçası {$a} sınırından büyük olduğu için yok sayıldı.';
+$string['alert:recordingunsupported'] = 'Bu tarayıcı ekran yakalayamıyor. Lütfen güncel bir Chrome, Edge veya Firefox kullanın.';
+$string['alert:recordingfailed'] = 'Ekran yakalama beklenmedik şekilde durdu. Lütfen sınav boyunca bu pencereyi açık tutun.';
+$string['warning:recordingdisabled'] = 'Bu sitede ekran yakalama kapalı.';
+$string['warning:emptyrecording'] = 'Yakalanan kare boş olduğu için yok sayıldı.';
+$string['warning:recordingtoolarge'] = 'Yakalanan kare {$a} sınırından büyük olduğu için yok sayıldı.';
 
 // Zamanlanmış görev.
-$string['task:cleanuprecordings'] = 'Süresi dolan gözetmen ekran kayıtlarını sil';
+$string['task:cleanuprecordings'] = 'Süresi dolan gözetmen ekran yakalamalarını sil';
 
 // Gizlilik.
-$string['privacy:metadata:quizaccess_invigilator_rec'] = 'Sınav sırasında alınan ekran kaydı parçalarını saklar';
+$string['privacy:metadata:quizaccess_invigilator_rec'] = 'Sınav sırasında yakalanan ekran karelerini saklar';
 $string['privacy:metadata:quizaccess_invigilator_rec:userid'] = 'Kaydı alınan kullanıcının ID bilgisi';
-$string['privacy:metadata:quizaccess_invigilator_rec:recording'] = 'Kaydedilen ekran parçasının bağlantısı';
-$string['privacy:metadata:quizaccess_invigilator_rec:timecreated'] = 'Parçanın kaydedildiği zaman';
+$string['privacy:metadata:quizaccess_invigilator_rec:recording'] = 'Yakalanan ekran karesinin bağlantısı';
+$string['privacy:metadata:quizaccess_invigilator_rec:timecreated'] = 'Karenin yakalandığı zaman';
+$string['setting:recordinginterval'] = 'Yakalama aralığı (saniye)';
+$string['setting:recordinginterval_desc'] = 'İki kare arasında geçen süre. On saniye, ayrıntı ile depolama arasında iyi bir dengedir.';
+$string['setting:recordingquality'] = 'Görüntü kalitesi (1-100)';
+$string['setting:recordingquality_desc'] = 'Her karenin JPEG kalitesi. 60 civarı, ekrandaki yazıları okunur tutarken boyutu düşük tutar.';
+$string['recordingframes'] = 'Kare sayısı';
+$string['playingframe'] = 'Kare {$a->number} / {$a->total} ({$a->time})';
+$string['player:play'] = 'Oynat';
+$string['player:pause'] = 'Duraklat';
+$string['player:previous'] = 'Önceki kare';
+$string['player:next'] = 'Sonraki kare';
+$string['player:speed'] = 'Hız';
+$string['player:fps'] = 'saniyede {$a} kare';
