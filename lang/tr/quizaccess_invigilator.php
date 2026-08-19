@@ -25,10 +25,6 @@ defined('MOODLE_INTERNAL') || die();
 
 $string['pluginname'] = 'Gözetmen (Invigilator)';
 $string['quizaccess_invigilator'] = 'quizaccess invigilator';
-$string['setting:screenshotdelay'] = 'Ekran görüntüleri arasındaki süre (saniye)';
-$string['setting:screenshotdelay_desc'] = 'Her ekran görüntüsü arasında beklenecek saniye sayısı.';
-$string['setting:screenshotwidth'] = 'Ekran görüntüsü genişliği (piksel)';
-$string['setting:screenshotwidth_desc'] = 'Kaydedilecek ekran görüntüsünün genişliği. Yükseklik en-boy oranına göre hesaplanır.';
 $string['invigilatorlabel'] = 'Doğrulama sürecini kabul ediyorum.';
 $string['youmustagree'] = 'Devam etmeden önce kimlik doğrulama sürecini kabul etmelisiniz.';
 $string['notrequired'] = 'gerekli değil';
@@ -39,7 +35,7 @@ $string['warning:allowscreenshare'] = 'Lütfen ekran paylaşımına izin verin.'
 $string['invigilatorheader'] = '<strong>Bu sınava devam edebilmek için ekranınızı paylaşmanız gerekir. Ekran paylaşımında tüm ekranı seçmelisiniz.</strong>';
 $string['picturesreport'] = 'Gözetmen raporunu görüntüle';
 $string['screensharemsg'] = '<strong>* Lütfen tüm ekran için ekran paylaşımına izin verin.</strong><br/><strong>* Bu pencereyi kapatmayın, aksi halde sınavınız sonlandırılır.</strong><br/>';
-$string['screenhtml'] = '<span><video id="invigilator-video-screen" width="320" height="240" autoplay></video></span><canvas id="invigilator-canvas-screen" style="display:none;"></canvas><img id="invigilator-photo-screen" alt="Görüntü bu alanda gösterilecek." style="display:none;"/><span class="invigilator-output-screen" style="display:none;"></span><span id="invigilator-log-screen" style="display:none;"></span><span id="invigilator-recording-status" class="invigilator-recording-status"></span>';
+$string['screenhtml'] = '<span><video id="invigilator-video-screen" width="320" height="240" autoplay></video></span><span id="invigilator-log-screen" style="display:none;"></span><span id="invigilator-recording-status" class="invigilator-recording-status"></span>';
 $string['sharescreen'] = 'Devam etmek için ekran paylaşımına izin verin';
 $string['sharescreenbtnlabel'] = 'Ekranı paylaş';
 $string['quizaccess_invigilator_label'] = 'Gözetmen';
@@ -85,16 +81,14 @@ $string['invigilator:viewrecording'] = 'Sınav sırasında yakalanan ekran karel
 $string['invigilator:deleterecording'] = 'Yakalanan ekran karelerini silme';
 
 // Ekran kaydı ayarları.
-$string['setting:recordingheading'] = 'Ekran kaydı';
-$string['setting:recordingheading_desc'] = 'Belirli aralıklarla alınan ekran görüntülerine ek olarak, paylaşılan ekran sınav boyunca örneklenebilir: birkaç saniyede bir sıkıştırılmış görüntü alınır ve raporda hızlandırılmış (timelapse) biçimde izlenir. Bu yöntem videonun kapladığı yerin küçük bir kısmını kullanır.';
-$string['setting:enablerecording'] = 'Ekran yakalamayı etkinleştir';
-$string['setting:enablerecording_desc'] = 'Etkinleştirilirse, paylaşılan ekran sınav boyunca belirli aralıklarla görüntülenir ve kareler raporda hızlandırılmış biçimde oynatılır.';
-$string['setting:recordingwidth'] = 'Kare genişliği (piksel)';
-$string['setting:recordingwidth_desc'] = 'Her kare yüklenmeden önce en fazla bu genişliğe küçültülür. Küçük değerler dosya boyutunu belirgin şekilde azaltır.';
-$string['setting:recordingmaxsize'] = 'En büyük kare boyutu (MB)';
-$string['setting:recordingmaxsize_desc'] = 'Bu boyutu aşan kareler reddedilir. Yükleme base64 ile kodlandığı için görüntüden yaklaşık üçte bir oranında büyür; bu değeri sunucunuzun PHP post_max_size ayarının altında tutun.';
-$string['setting:recordingretention'] = 'Yakalanan görüntülerin saklanma süresi (gün)';
-$string['setting:recordingretention_desc'] = 'Bu süreden eski kareler zamanlanmış görev tarafından silinir. Elle silinene kadar saklamak için 0 girin.';
+$string['setting:enablerecording'] = 'Ekranı görüntüle';
+$string['setting:enablerecording_desc'] = 'Kapatılırsa öğrenciler sınava başlamak için yine ekran paylaşmak zorundadır, ancak hiçbir görüntü saklanmaz.';
+$string['setting:recordingwidth'] = 'Ekran görüntüsü genişliği (piksel)';
+$string['setting:recordingwidth_desc'] = 'Görüntüler, paylaşılan ekranın en-boy oranı korunarak en fazla bu genişliğe küçültülür. İzin verilen aralık: 320 - 3840. Varsayılan ayarlarla bir görüntü yaklaşık 100-150 KB\'dir, yani 1 saatlik bir sınav yaklaşık 40 MB yer kaplar.';
+$string['setting:recordingmaxsize'] = 'Bir ekran görüntüsünün en büyük boyutu (MB)';
+$string['setting:recordingmaxsize_desc'] = 'Bu boyutu aşan görüntüler reddedilir. Yükleme base64 ile kodlandığı için görüntüden yaklaşık üçte bir oranında büyür; bu değeri sunucunun PHP post_max_size ayarının altında tutun.';
+$string['setting:recordingretention'] = 'Ekran görüntülerinin saklanma süresi (gün)';
+$string['setting:recordingretention_desc'] = 'Bu süreden eski görüntüler zamanlanmış görev tarafından silinir. Elle silinene kadar saklamak için 0 girin.';
 
 // Kayıt raporu.
 $string['recordingsreport'] = 'Ekran yakalamalarını görüntüle';
@@ -123,10 +117,10 @@ $string['privacy:metadata:quizaccess_invigilator_rec'] = 'Sınav sırasında yak
 $string['privacy:metadata:quizaccess_invigilator_rec:userid'] = 'Kaydı alınan kullanıcının ID bilgisi';
 $string['privacy:metadata:quizaccess_invigilator_rec:recording'] = 'Yakalanan ekran karesinin bağlantısı';
 $string['privacy:metadata:quizaccess_invigilator_rec:timecreated'] = 'Karenin yakalandığı zaman';
-$string['setting:recordinginterval'] = 'Yakalama aralığı (saniye)';
-$string['setting:recordinginterval_desc'] = 'İki kare arasında geçen süre. On saniye, ayrıntı ile depolama arasında iyi bir dengedir.';
-$string['setting:recordingquality'] = 'Görüntü kalitesi (1-100)';
-$string['setting:recordingquality_desc'] = 'Her karenin JPEG kalitesi. 60 civarı, ekrandaki yazıları okunur tutarken boyutu düşük tutar.';
+$string['setting:recordinginterval'] = 'Ekran görüntüleri arasındaki süre (saniye)';
+$string['setting:recordinginterval_desc'] = 'İki ekran görüntüsü arasında geçen saniye. On saniye, ayrıntı ile depolama arasında iyi bir dengedir; süreyi yarıya indirmek kaplanan yeri iki katına çıkarır. İzin verilen aralık: 2 - 600.';
+$string['setting:recordingquality'] = 'Ekran görüntüsü kalitesi';
+$string['setting:recordingquality_desc'] = 'Her görüntünün JPEG kalitesi, 10 ile 100 arasında. 60 civarı ekrandaki yazıları okunur tutarken boyutu küçük bırakır; 85 üzerinde dosyalar gözle görülür bir kazanç olmadan hızla büyür.';
 $string['recordingframes'] = 'Kare sayısı';
 $string['playingframe'] = 'Kare {$a->number} / {$a->total} ({$a->time})';
 $string['player:play'] = 'Oynat';
@@ -135,3 +129,12 @@ $string['player:previous'] = 'Önceki kare';
 $string['player:next'] = 'Sonraki kare';
 $string['player:speed'] = 'Hız';
 $string['player:fps'] = 'saniyede {$a} kare';
+
+// Sınav öncesi adımlar: önce ekran paylaşımı, sonra onay.
+$string['youmustsharescreen'] = 'Sınava başlamadan önce tüm ekranınızı paylaşmanız gerekir.';
+$string['sharescreenfirst'] = 'Önce ekranınızı paylaşın, ardından bu kutuyu işaretleyin.';
+$string['setting:captureheading'] = 'Ekran görüntüsü yakalama';
+$string['setting:captureheading_desc'] = 'Öğrenci sınavı çözerken paylaşılan ekran birkaç saniyede bir görüntü olarak kaydedilir. Rapor, bir denemenin görüntülerini sırayla oynatarak sınavın tamamını hızlandırılmış biçimde izletir. Kaplanan yeri belirleyen iki değer aşağıdaki aralık ve kalitedir.';
+$string['setting:storageheading'] = 'Depolama';
+$string['setting:storageheading_desc'] = 'Yakalanan görüntülerin ne kadar saklanacağı ve bir görüntünün ulaşabileceği boyut sınırı.';
+$string['error:outofrange'] = '{$a->min} ile {$a->max} arasında bir tam sayı girin.';

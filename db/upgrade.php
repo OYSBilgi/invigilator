@@ -96,5 +96,26 @@ function xmldb_quizaccess_invigilator_upgrade($oldversion) {
         upgrade_plugin_savepoint(true, 2026081901, 'quizaccess', 'invigilator');
     }
 
+    if ($oldversion < 2026081902) {
+
+        // The screen is captured in one place now, so the two settings that drove the old
+        // screenshot loop are folded into the capture settings and then dropped. Whatever the
+        // admin had chosen for how often and how large is what the site keeps using.
+        $olddelay = get_config('quizaccess_invigilator', 'screenshotdelay');
+        if ($olddelay !== false && (int)$olddelay >= 2 && (int)$olddelay <= 600) {
+            set_config('recordinginterval', (int)$olddelay, 'quizaccess_invigilator');
+        }
+
+        $oldwidth = get_config('quizaccess_invigilator', 'screenshotwidth');
+        if ($oldwidth !== false && (int)$oldwidth >= 320 && (int)$oldwidth <= 3840) {
+            set_config('recordingwidth', (int)$oldwidth, 'quizaccess_invigilator');
+        }
+
+        unset_config('screenshotdelay', 'quizaccess_invigilator');
+        unset_config('screenshotwidth', 'quizaccess_invigilator');
+
+        upgrade_plugin_savepoint(true, 2026081902, 'quizaccess', 'invigilator');
+    }
+
     return true;
 }

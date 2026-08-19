@@ -8,8 +8,8 @@ Before starting the quiz, it will ask for screenshare permission. By accepting t
 
 
 ## Features
-- Capture screenshot of entire screen.
-- Sample the shared screen into a capture session: one small image every few seconds for the whole attempt.
+- Capture the entire screen, with the interval, quality and width set by the site administrator.
+- Capture the shared screen as one small image every few seconds for the whole attempt.
 - Play a session back in the browser as a time lapse, with speed control, scrubbing and a frame list.
 - Can't access quiz if the user does not allow the screenshare
 - Admin report and check any suspicious activity
@@ -29,39 +29,57 @@ Before starting the quiz, it will ask for screenshare permission. By accepting t
 
 ## Screen capture (time lapse)
 
-While a student attempts the quiz, the invigilator window keeps the screen share open and does two
-things at once: it grabs a screenshot every `screenshotdelay` seconds through the original
-screenshot pipeline, and it samples the screen into a capture session.
+While a student attempts the quiz, the shared screen is captured as a JPEG every few seconds. All
+images of one attempt share a session id, and the report plays them back in order, so a whole
+attempt can be watched as a time lapse. Video was tried and dropped: it costs hundreds of megabytes
+per student, while a sampled attempt costs tens of megabytes and a dropped connection only ever
+loses a single image.
 
-Video of a whole exam runs to hundreds of megabytes per student, so the session is not filmed. The
-screen is sampled instead: one compressed JPEG every `recordinginterval` seconds, every frame of an
-attempt sharing a session id. The report plays the frames of a session back in order, which watches
-like a time lapse of the attempt at a fraction of the storage. A dropped connection only ever costs
-a single frame.
+There is one capture pipeline and one set of settings. The screenshot loop the plugin used to run
+in parallel was removed in 2.2.0; the screenshots it stored in the past are still readable through
+**View invigilator report**.
 
 ### Settings
 
-Site administration -> Plugins -> Activity modules -> Quiz -> Invigilator. The interval and the
-frame size are the two values worth tuning for your storage budget:
+Site administration -> Plugins -> Activity modules -> Quiz -> Invigilator. Values are typed in and
+checked when the form is saved, so a mistyped zero is refused rather than silently corrected:
 
-| Setting | Default | What it does |
-| --- | --- | --- |
-| `enablerecording` | Yes | Sample the screen in addition to the screenshots. |
-| `recordinginterval` | 10 | Seconds between two captured frames. |
-| `recordingwidth` | 1280 | Frames are scaled down to at most this width. |
-| `recordingquality` | 60 | JPEG quality of each frame, 1 to 100. |
-| `recordingmaxsize` | 2 | Frames larger than this many MB are rejected. |
-| `recordingretention` | 0 | Days to keep frames. 0 keeps them until deleted by hand. |
+| Setting | Default | Range | What it does |
+| --- | --- | --- | --- |
+| Capture the screen | Yes | - | Turns the capture off without lifting the screen share requirement. |
+| Seconds between screenshots | 10 | 2-600 | How often the screen is captured. |
+| Screenshot quality | 60 | 10-100 | JPEG quality of each image. |
+| Screenshot width (pixels) | 1280 | 320-3840 | Images are scaled down to at most this width. |
+| Keep screenshots for (days) | 0 | 0-3650 | 0 keeps them until deleted by hand. |
+| Maximum size of one screenshot (MB) | 2 | 1-50 | Larger images are refused. |
 
-With the defaults a frame is roughly 100-150 KB, so a one hour attempt costs about 40 MB. Doubling
-the interval halves that; dropping the width to 960 px roughly halves it again.
+With the defaults one screenshot is roughly 100-150 KB, so a one hour attempt costs about 40 MB.
+Doubling the interval halves that; dropping the width to 960 px roughly halves it again.
 
-Frames are uploaded base64 encoded through the `quizaccess_invigilator_send_frame` web service, so
-the payload is about a third larger than the image. Keep `recordingmaxsize` below the
-`post_max_size` of the web server.
+Images are uploaded base64 encoded through the `quizaccess_invigilator_send_frame` web service, so
+the payload is about a third larger than the image. Keep the maximum size below the `post_max_size`
+of the web server.
 
-Frames older than `recordingretention` days are deleted by the
+Screenshots older than the retention period are deleted by the
 `quizaccess_invigilator\task\cleanup_recordings` scheduled task, which runs nightly.
+
+### Starting an attempt
+
+The preflight form walks the student through two steps, in this order:
+
+1. **Share the screen.** Until a display surface is really being captured, the agreement checkbox
+   stays disabled and carries the hint *"Share your screen first, then tick this box."*
+2. **Tick the agreement box.** Only then does the start button unlock.
+
+Stopping the share puts the form back to step one: the box is unticked and disabled again, and the
+start button locks. Submitting the form anyway is blocked in the browser, and
+`validate_preflight_check()` refuses the post on the server, which is the check that actually
+decides: it requires `invigilator_window_surface` to be `live`, `invigilator_share_state` to be
+`true`, and the checkbox to be set. Those two hidden fields are ordinary form elements written by
+the browser, so like any client supplied value they keep an honest student honest rather than
+defeating a determined one; the capture itself is what the report is based on.
+
+The check runs for every new attempt and is skipped only when an existing attempt is continued.
 
 ### Watching a capture session
 

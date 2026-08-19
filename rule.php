@@ -45,40 +45,16 @@ class quizaccess_invigilator extends quizaccess_invigilator_rule_base
     /**
      * Check is preflight check is required.
      *
-     * @param mixed $attemptid
+     * The agreement has to be given before every new attempt, both when the form is shown on the
+     * quiz page and when it is posted to startattempt.php. Returning false for the post is what
+     * would let a student start without agreeing, so the only case we skip is an attempt that
+     * already exists, where the student agreed when it was started.
+     *
+     * @param mixed $attemptid id of the attempt being continued, empty when starting a new one.
      * @return bool
      */
     public function is_preflight_check_required($attemptid) {
-        global $USER, $DB;
-        
-        // Only show preflight check when starting a new attempt
-        if ($attemptid) {
-            // If we have an attempt ID, we're continuing an existing attempt
-            return false;
-        }
-        
-        // Check if user has any attempts for this quiz
-        $existing_attempts = $DB->count_records('quiz_attempts', [
-            'quiz' => $this->quiz->id,
-            'userid' => $USER->id
-        ]);
-        
-        if ($existing_attempts > 3) {
-            // User has attempted this quiz before, don't show preflight again
-            return false;
-        }
-        
-        // Check if this is a POST request (form submission)
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            return false;
-        }
-        
-        // Check if we're on the right page
-        $script = $this->get_topmost_script();
-        $base = basename($script);
-        
-        // Only show on view.php for new attempts
-        return $base == "view.php";
+        return empty($attemptid);
     }
 
     /**
@@ -127,19 +103,15 @@ class quizaccess_invigilator extends quizaccess_invigilator_rule_base
     public function add_preflight_check_form_fields($quizform, MoodleQuickForm $mform, $attemptid) {
         global $PAGE;
         $coursedata = $this->get_courseid_cmid_from_preflight_form();
-        $screenshotdelay = get_config('quizaccess_invigilator', 'screenshotdelay');
-        $screenshotwidth = get_config('quizaccess_invigilator', 'screenshotwidth');
 
         $record = [];
         $record["courseid"] = (int)$coursedata['courseid'];
         $record["cmid"] = (int)$coursedata['cmid'];
         $record["quizid"] = (int)$coursedata['quizid'];
-        $record["screenshotdelay"] = (int)$screenshotdelay;
-        $record["screenshotwidth"] = (int)$screenshotwidth;
         $record["screensharemsg"] = get_string('alert:screensharemsg', 'quizaccess_invigilator');
         $record["restartattemptcommand"] = get_string('alert:restartattemptcommand', 'quizaccess_invigilator');
         $record["somethingwentwrong"] = get_string('alert:somethingwentwrong', 'quizaccess_invigilator');
-        $record = array_merge($record, self::get_recording_js_config());
+        $record = array_merge($record, self::get_recording_js_config(), self::get_preflight_js_strings());
 
         $PAGE->requires->js_call_amd('quizaccess_invigilator/startattempt', 'setup', [$record]);
         $attributesarray = $mform->_attributes;
@@ -149,16 +121,33 @@ class quizaccess_invigilator extends quizaccess_invigilator_rule_base
         $screensharebtnlabel = get_string('sharescreenbtnlabel', 'quizaccess_invigilator');
         $modalcontent = $this->make_modal_content($quizform);
         $actionbtns = "<button id='invigilator-share-screen-btn' style='margin: 5px'>".$screensharebtnlabel."</button>";
-        $hiddenvalue = "<input id='invigilator_window_surface' value='' type='hidden'/>".
-        "<input id='invigilator_share_state' value='' type='hidden'/>".
-        "<input id='invigilator_screen_off_flag' value='0' type='hidden'/>";
 
         $mform->addElement('static', 'modalcontent', '', $modalcontent);
         $mform->addElement('static', 'actionbtns', '', $actionbtns);
         $mform->addElement('checkbox', 'invigilator', get_string('invigilatorlabel', 'quizaccess_invigilator'));
-        $hiddenvalue = "<input id='invigilator_window_surface' name='invigilator_window_surface' value='' type='hidden'/>".
-                   "<input id='invigilator_share_state' name='invigilator_share_state' value='' type='hidden'/>";
-        $mform->addElement('html', $hiddenvalue);
+
+        // The browser writes the state of the screen share into these, and they are what
+        // validate_preflight_check() reads. They are real form elements rather than loose HTML,
+        // otherwise their values never reach the validation.
+        foreach (['invigilator_window_surface' => '', 'invigilator_share_state' => '',
+                  'invigilator_screen_off_flag' => '0'] as $name => $default) {
+            $mform->addElement('hidden', $name, $default, ['id' => $name]);
+            $mform->setType($name, PARAM_ALPHANUMEXT);
+        }
+    }
+
+    /**
+     * Messages the preflight javascript shows next to the checkbox.
+     *
+     * @return array
+     * @throws coding_exception
+     */
+    public static function get_preflight_js_strings(): array {
+        return [
+            'youmustagree' => get_string('youmustagree', 'quizaccess_invigilator'),
+            'youmustsharescreen' => get_string('youmustsharescreen', 'quizaccess_invigilator'),
+            'sharescreenfirst' => get_string('sharescreenfirst', 'quizaccess_invigilator'),
+        ];
     }
 
     /**
@@ -186,17 +175,21 @@ class quizaccess_invigilator extends quizaccess_invigilator_rule_base
      * @throws coding_exception
      */
     public function validate_preflight_check($data, $files, $errors, $attemptid) {
-        if (empty($data['invigilator'])) {
-            $errors['invigilator'] = get_string('youmustagree', 'quizaccess_invigilator');
+        // The screen has to be shared first: the browser only fills these in while a display
+        // surface is actually being captured, and blanks the share state as soon as it stops.
+        $surface = isset($data['invigilator_window_surface']) ? $data['invigilator_window_surface'] : '';
+        $sharestate = isset($data['invigilator_share_state']) ? $data['invigilator_share_state'] : '';
+
+        if ($surface !== 'live' || $sharestate !== 'true') {
+            $errors['invigilator'] = get_string('youmustsharescreen', 'quizaccess_invigilator');
+
+            return $errors;
         }
 
-        return $errors;
-
-        // 2. Check if the screen has been shared (via the hidden input field).
-        // If the hidden field 'invigilator_window_surface' is empty, it means the JS didn't record a successful share.
-        if (empty($data['invigilator_window_surface'])) {
-            // We assign the error to the 'invigilator' field so it highlights the checkbox area in red.
-            $errors['invigilator'] = "You must share your screen before you can start the attempt.";
+        // Then the agreement. The browser disables the button as well, but these are the checks
+        // that actually decide, since the button can be re-enabled by hand.
+        if (empty($data['invigilator'])) {
+            $errors['invigilator'] = get_string('youmustagree', 'quizaccess_invigilator');
         }
 
         return $errors;
@@ -318,6 +311,9 @@ class quizaccess_invigilator extends quizaccess_invigilator_rule_base
         $record->screensharemsg = get_string('alert:screensharemsg', 'quizaccess_invigilator');
         $record->restartattemptcommand = get_string('alert:restartattemptcommand', 'quizaccess_invigilator');
         $record->somethingwentwrong = get_string('alert:somethingwentwrong', 'quizaccess_invigilator');
+        foreach (self::get_preflight_js_strings() as $name => $value) {
+            $record->$name = $value;
+        }
 
         $PAGE->requires->js_call_amd('quizaccess_invigilator/startattempt', 'init', [$record]);
         $messages = [get_string('invigilatorheader', 'quizaccess_invigilator')];
@@ -345,14 +341,9 @@ class quizaccess_invigilator extends quizaccess_invigilator_rule_base
 
         global $DB, $COURSE, $USER;
         if ($cmid) {
-            // Get Screenshot Delay and Image Width.
-            $screenshotdelay = get_config('quizaccess_invigilator', 'screenshotdelay');
-            $screenshotwidth = get_config('quizaccess_invigilator', 'screenshotwidth');
             $quizurl = new moodle_url("/mod/quiz/view.php", ["id" => $cmid]);
 
             $record = new stdClass();
-            $record->screenshotdelay = $screenshotdelay;
-            $record->screenshotwidth = $screenshotwidth;
             $record->quizurl = $quizurl->__toString();
             $page->requires->js_call_amd('quizaccess_invigilator/attemptpage', 'setup', [$record]);
         }

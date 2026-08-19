@@ -25,10 +25,6 @@ defined('MOODLE_INTERNAL') || die();
 
 $string['pluginname'] = 'Invigilator';
 $string['quizaccess_invigilator'] = 'quizaccess invigilator';
-$string['setting:screenshotdelay'] = "The delay between screenshots in seconds.";
-$string['setting:screenshotdelay_desc'] = "Given value will be the delay in seconds between each screenshot";
-$string['setting:screenshotwidth'] = "The width of the screenshot image in pixel.";
-$string['setting:screenshotwidth_desc'] = "Given value will be the width of the screenshot. The image height will be scaled to that";
 $string['invigilatorlabel'] = 'I agree with the validation process.';
 $string['youmustagree'] = 'You must agree to validate your identity before continue.';
 $string['notrequired'] = 'not required';
@@ -39,7 +35,7 @@ $string['warning:allowscreenshare'] = 'Please allow screen share.';
 $string['invigilatorheader'] = '<strong>To continue with this quiz attempt you must share your screen. You must choose entire monitor in screen sharing option.</strong>';
 $string['picturesreport'] = 'View invigilator report';
 $string['screensharemsg'] = '<strong>* Please allow screenshare for entire monitor.</strong><br/><strong>* Please dont close this window or your attempt will be closed</strong><br/>';
-$string['screenhtml'] = '<span><video id="invigilator-video-screen" width="320" height="240" autoplay></video></span><canvas id="invigilator-canvas-screen" style="display:none;"></canvas><img id="invigilator-photo-screen" alt="The picture will appear in this box." style="display:none;"/><span class="invigilator-output-screen" style="display:none;"></span><span id="invigilator-log-screen" style="display:none;"></span><span id="invigilator-recording-status" class="invigilator-recording-status"></span>';
+$string['screenhtml'] = '<span><video id="invigilator-video-screen" width="320" height="240" autoplay></video></span><span id="invigilator-log-screen" style="display:none;"></span><span id="invigilator-recording-status" class="invigilator-recording-status"></span>';
 $string['sharescreen'] = 'Allow screen share to continue';
 $string['sharescreenbtnlabel'] = 'Share screen';
 $string['quizaccess_invigilator_label'] = 'Invigilator';
@@ -85,16 +81,14 @@ $string['invigilator:viewrecording'] = 'View the screen frames captured during a
 $string['invigilator:deleterecording'] = 'Delete captured screen frames';
 
 // Screen recording settings.
-$string['setting:recordingheading'] = 'Screen recording';
-$string['setting:recordingheading_desc'] = 'Besides the periodic screenshots, the shared screen can be sampled for the whole attempt: one compressed image every few seconds, played back in the report as a time lapse. Sampling costs a fraction of the storage a video would.';
-$string['setting:enablerecording'] = 'Enable screen capture';
-$string['setting:enablerecording_desc'] = 'If enabled, the shared screen is sampled for the whole attempt and the frames are played back as a time lapse in the report.';
-$string['setting:recordingwidth'] = 'Frame width (pixels)';
-$string['setting:recordingwidth_desc'] = 'Each frame is scaled down to at most this width before it is uploaded. Smaller values produce much smaller files.';
-$string['setting:recordingmaxsize'] = 'Maximum frame size (MB)';
-$string['setting:recordingmaxsize_desc'] = 'Frames larger than this are rejected. Keep this below the PHP post_max_size of the server, remembering that the upload is base64 encoded and therefore about a third larger than the image itself.';
-$string['setting:recordingretention'] = 'Keep captures for (days)';
-$string['setting:recordingretention_desc'] = 'Frames older than this are deleted by a scheduled task. Use 0 to keep them until they are deleted by hand.';
+$string['setting:enablerecording'] = 'Capture the screen';
+$string['setting:enablerecording_desc'] = 'If disabled, students still have to share their screen to start an attempt, but no images are stored.';
+$string['setting:recordingwidth'] = 'Screenshot width (pixels)';
+$string['setting:recordingwidth_desc'] = 'Screenshots are scaled down to at most this width, keeping the aspect ratio of the shared screen. Allowed range 320 to 3840. With the default settings one screenshot is roughly 100-150 KB, so a one hour attempt costs about 40 MB.';
+$string['setting:recordingmaxsize'] = 'Maximum size of one screenshot (MB)';
+$string['setting:recordingmaxsize_desc'] = 'Screenshots larger than this are refused. Keep it below the PHP post_max_size of the server, remembering that the upload is base64 encoded and therefore about a third larger than the image itself.';
+$string['setting:recordingretention'] = 'Keep screenshots for (days)';
+$string['setting:recordingretention_desc'] = 'Screenshots older than this are deleted by a scheduled task. Use 0 to keep them until they are deleted by hand.';
 
 // Recording report.
 $string['recordingsreport'] = 'View screen captures';
@@ -123,10 +117,10 @@ $string['privacy:metadata:quizaccess_invigilator_rec'] = 'Stores the screen fram
 $string['privacy:metadata:quizaccess_invigilator_rec:userid'] = 'The ID of the user who was recorded';
 $string['privacy:metadata:quizaccess_invigilator_rec:recording'] = 'Link to a captured frame of the screen';
 $string['privacy:metadata:quizaccess_invigilator_rec:timecreated'] = 'The time the frame was captured';
-$string['setting:recordinginterval'] = 'Capture interval (seconds)';
-$string['setting:recordinginterval_desc'] = 'How many seconds pass between two captured frames. Ten seconds is a good balance between detail and storage.';
-$string['setting:recordingquality'] = 'Image quality (1-100)';
-$string['setting:recordingquality_desc'] = 'JPEG quality of each frame. Around 60 keeps screen text readable at a fraction of the size.';
+$string['setting:recordinginterval'] = 'Seconds between screenshots';
+$string['setting:recordinginterval_desc'] = 'How many seconds pass between two screenshots. Ten seconds is a good balance between detail and storage: halving it doubles the storage an attempt costs. Allowed range 2 to 600.';
+$string['setting:recordingquality'] = 'Screenshot quality';
+$string['setting:recordingquality_desc'] = 'JPEG quality of each screenshot, from 10 to 100. Around 60 keeps the text on screen readable at a fraction of the size; above 85 the files grow quickly with little visible gain.';
 $string['recordingframes'] = 'Frames';
 $string['playingframe'] = 'Frame {$a->number} of {$a->total} ({$a->time})';
 $string['player:play'] = 'Play';
@@ -135,3 +129,12 @@ $string['player:previous'] = 'Previous frame';
 $string['player:next'] = 'Next frame';
 $string['player:speed'] = 'Speed';
 $string['player:fps'] = '{$a} frames per second';
+
+// Preflight steps: share the screen first, then agree.
+$string['youmustsharescreen'] = 'You must share your entire screen before you can start the attempt.';
+$string['sharescreenfirst'] = 'Share your screen first, then tick this box.';
+$string['setting:captureheading'] = 'Screen capture';
+$string['setting:captureheading_desc'] = 'While a student attempts the quiz, the shared screen is captured as an image every few seconds. The report plays the images of one attempt back in order, so a whole attempt can be watched as a time lapse. The two values that decide how much storage this costs are the interval and the quality below.';
+$string['setting:storageheading'] = 'Storage';
+$string['setting:storageheading_desc'] = 'How long the captured images are kept, and the size limit one image may reach.';
+$string['error:outofrange'] = 'Enter a whole number between {$a->min} and {$a->max}.';

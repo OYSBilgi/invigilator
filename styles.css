@@ -268,3 +268,16 @@ body.lb-disable-scrolling {
     margin-top: 0.5rem;
     color: #a94442;
 }
+
+.invigilator-preflight-message {
+    margin-top: 0.25rem;
+}
+
+.invigilator-preflight-hint {
+    color: #6a737b;
+}
+
+.invigilator-preflight-error {
+    color: #a94442;
+    font-weight: bold;
+}

@@ -25,45 +25,43 @@
 defined('MOODLE_INTERNAL') || die();
 
 
+use quizaccess_invigilator\admin\setting_intrange;
+
 global $ADMIN;
 
 if ($hassiteconfig) {
-    $settings->add(new admin_setting_configtext('quizaccess_invigilator/screenshotdelay',
-        get_string('setting:screenshotdelay', 'quizaccess_invigilator'),
-        get_string('setting:screenshotdelay_desc', 'quizaccess_invigilator'), 30, PARAM_INT));
 
-    $settings->add(new admin_setting_configtext('quizaccess_invigilator/screenshotwidth',
-        get_string('setting:screenshotwidth', 'quizaccess_invigilator'),
-        get_string('setting:screenshotwidth_desc', 'quizaccess_invigilator'), 720, PARAM_INT));
-
-    // Screen recording.
-    $settings->add(new admin_setting_heading('quizaccess_invigilator/recordingheading',
-        get_string('setting:recordingheading', 'quizaccess_invigilator'),
-        get_string('setting:recordingheading_desc', 'quizaccess_invigilator')));
+    // What is captured, and how often.
+    $settings->add(new admin_setting_heading('quizaccess_invigilator/captureheading',
+        get_string('setting:captureheading', 'quizaccess_invigilator'),
+        get_string('setting:captureheading_desc', 'quizaccess_invigilator')));
 
     $settings->add(new admin_setting_configcheckbox('quizaccess_invigilator/enablerecording',
         get_string('setting:enablerecording', 'quizaccess_invigilator'),
         get_string('setting:enablerecording_desc', 'quizaccess_invigilator'), 1));
 
-    $settings->add(new admin_setting_configtext('quizaccess_invigilator/recordinginterval',
+    $settings->add(new setting_intrange('quizaccess_invigilator/recordinginterval',
         get_string('setting:recordinginterval', 'quizaccess_invigilator'),
-        get_string('setting:recordinginterval_desc', 'quizaccess_invigilator'), 10, PARAM_INT));
+        get_string('setting:recordinginterval_desc', 'quizaccess_invigilator'), 10, 2, 600));
 
-    $settings->add(new admin_setting_configtext('quizaccess_invigilator/recordingwidth',
-        get_string('setting:recordingwidth', 'quizaccess_invigilator'),
-        get_string('setting:recordingwidth_desc', 'quizaccess_invigilator'), 1280, PARAM_INT));
-
-    $settings->add(new admin_setting_configtext('quizaccess_invigilator/recordingquality',
+    $settings->add(new setting_intrange('quizaccess_invigilator/recordingquality',
         get_string('setting:recordingquality', 'quizaccess_invigilator'),
-        get_string('setting:recordingquality_desc', 'quizaccess_invigilator'), 60, PARAM_INT));
+        get_string('setting:recordingquality_desc', 'quizaccess_invigilator'), 60, 10, 100));
 
-    $settings->add(new admin_setting_configtext('quizaccess_invigilator/recordingmaxsize',
-        get_string('setting:recordingmaxsize', 'quizaccess_invigilator'),
-        get_string('setting:recordingmaxsize_desc', 'quizaccess_invigilator'), 2, PARAM_INT));
+    $settings->add(new setting_intrange('quizaccess_invigilator/recordingwidth',
+        get_string('setting:recordingwidth', 'quizaccess_invigilator'),
+        get_string('setting:recordingwidth_desc', 'quizaccess_invigilator'), 1280, 320, 3840));
 
-    $settings->add(new admin_setting_configtext('quizaccess_invigilator/recordingretention',
+    // How long the images are kept, and how big one is allowed to be.
+    $settings->add(new admin_setting_heading('quizaccess_invigilator/storageheading',
+        get_string('setting:storageheading', 'quizaccess_invigilator'),
+        get_string('setting:storageheading_desc', 'quizaccess_invigilator')));
+
+    $settings->add(new setting_intrange('quizaccess_invigilator/recordingretention',
         get_string('setting:recordingretention', 'quizaccess_invigilator'),
-        get_string('setting:recordingretention_desc', 'quizaccess_invigilator'), 0, PARAM_INT));
+        get_string('setting:recordingretention_desc', 'quizaccess_invigilator'), 0, 0, 3650));
+
+    $settings->add(new setting_intrange('quizaccess_invigilator/recordingmaxsize',
+        get_string('setting:recordingmaxsize', 'quizaccess_invigilator'),
+        get_string('setting:recordingmaxsize_desc', 'quizaccess_invigilator'), 2, 1, 50));
 }
-
-

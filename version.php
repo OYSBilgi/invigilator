@@ -24,8 +24,8 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'quizaccess_invigilator';
-$plugin->release = '2.1.0';
-$plugin->version = 2026081901;
+$plugin->release = '2.2.0';
+$plugin->version = 2026081902;
 $plugin->requires = 2022041900; // Moodle 4.0.
 $plugin->supported = [400, 500]; // Moodle 4.0 - 5.0.
 $plugin->maturity = MATURITY_BETA;

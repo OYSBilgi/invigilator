@@ -71,6 +71,10 @@ class quizaccess_invigilator_external extends quizaccess_invigilator_external_ap
     /**
      * Store the screenshots in Moodle subsystems and insert in log table
      *
+     * Nothing in the plugin calls this any more: the screen is captured through send_frame(), and
+     * one capture pipeline is enough. It is kept so that sites can still reach the screenshots
+     * this service stored in the past, and so external callers do not break without warning.
+     *
      * @param mixed $courseid
      * @param mixed $cmid
      * @param mixed $quizid Quizid OR cmid

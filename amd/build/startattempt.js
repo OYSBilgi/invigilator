@@ -21,10 +21,195 @@
  * @copyright  2021 Brain Station 23
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-define(['jquery', 'core/ajax', 'core/notification', 'quizaccess_invigilator/framecapture'],
-    function ($, Ajax, Notification, FrameCapture) {
+define(['jquery', 'quizaccess_invigilator/framecapture'],
+    function ($, FrameCapture) {
+
+        var CHECKBOX = 'input[type="checkbox"][name="invigilator"]';
+
+        // Both entry points run on the page holding the preflight form, so the handlers below
+        // are bound once and then left to keep the form in step with the screen share.
+        var gate = {bound: false, strings: {}, lastclicked: null};
+
+        /**
+         * Whether a display surface is being captured right now.
+         *
+         * The browser writes this into the hidden field every second, and blanks it as soon as
+         * the student stops sharing, so it is the one place that knows the current state.
+         *
+         * @return {boolean}
+         */
+        function shareIsLive() {
+            var state = document.getElementById('invigilator_share_state');
+            var surface = document.getElementById('invigilator_window_surface');
+
+            return !!(state && state.value === 'true' && surface && surface.value === 'live');
+        }
+
+        /**
+         * Every button that would start the attempt from the form this checkbox is in.
+         *
+         * Moodle shows the preflight form both as a plain page and inside a modal, and the
+         * modal keeps its own footer buttons, so ids are not unique and both places matter.
+         * Everything is therefore looked up relative to the checkbox that was found.
+         *
+         * @param {jQuery} checkbox
+         * @return {jQuery} the buttons that submit that form.
+         */
+        function startButtonsFor(checkbox) {
+            var form = checkbox.closest('form');
+            var buttons = form.find('#id_submitbutton, [name="submitbutton"]');
+
+            var modal = checkbox.closest('.modal-content, .modal');
+            if (modal.length) {
+                buttons = buttons.add(modal.find('.modal-footer [data-action="save"]'));
+            }
+
+            if (!buttons.length) {
+                // Fall back to the submit buttons that are not the cancel one.
+                buttons = form.find('input[type="submit"], button[type="submit"]').not('[name="cancel"]');
+            }
+
+            return buttons;
+        }
+
+        /**
+         * The block the checkbox sits in, where messages are put.
+         *
+         * @param {jQuery} checkbox
+         * @return {jQuery}
+         */
+        function holderFor(checkbox) {
+            return checkbox.closest('.fitem, .form-group, div').first();
+        }
+
+        /**
+         * Show a message under the checkbox, touching the page only when it really changes.
+         *
+         * Leaving an unchanged message alone matters: this runs on a timer and from a mutation
+         * observer, and rewriting the same node every time would have them chase each other.
+         *
+         * @param {jQuery} checkbox
+         * @param {string} classname invigilator-preflight-hint or invigilator-preflight-error.
+         * @param {string} message empty to remove the message.
+         */
+        function setCheckboxMessage(checkbox, classname, message) {
+            var existing = holderFor(checkbox).find('.' + classname);
+
+            if (!message) {
+                existing.remove();
+                return;
+            }
+            if (existing.length) {
+                if (existing.text() !== message) {
+                    existing.text(message);
+                }
+                return;
+            }
+
+            holderFor(checkbox).append(
+                $('<div class="invigilator-preflight-message"></div>').addClass(classname).text(message));
+        }
+
+        /**
+         * Walk the form through its two steps: share the screen, then agree.
+         *
+         * Until the screen is shared the checkbox stays disabled, and if the share is stopped
+         * again the agreement is withdrawn with it.
+         */
+        function syncPreflightState() {
+            var live = shareIsLive();
+
+            $(CHECKBOX).each(function () {
+                var checkbox = $(this);
+
+                if (!live && checkbox.is(':checked')) {
+                    // The share was stopped, so the agreement no longer stands either.
+                    checkbox.prop('checked', false);
+                }
+                checkbox.prop('disabled', !live);
+
+                startButtonsFor(checkbox).prop('disabled', !live || !checkbox.is(':checked'));
+
+                setCheckboxMessage(checkbox, 'invigilator-preflight-hint', live ? '' : gate.strings.sharescreenfirst);
+
+                if (live && checkbox.is(':checked')) {
+                    // Whatever the student was told off for has been put right.
+                    setCheckboxMessage(checkbox, 'invigilator-preflight-error', '');
+                }
+            });
+        }
+
+        /**
+         * Lock the attempt behind the screen share and the agreement.
+         *
+         * @param {Object} strings youmustagree, youmustsharescreen and sharescreenfirst.
+         */
+        function setupPreflightGate(strings) {
+            gate.strings = $.extend(gate.strings, strings || {});
+
+            if (gate.bound) {
+                syncPreflightState();
+                return;
+            }
+            gate.bound = true;
+
+            // Remember which button was used, so cancelling is never blocked.
+            $(document).on('click', 'input[type="submit"], button[type="submit"]', function () {
+                gate.lastclicked = this;
+            });
+
+            $(document).on('change', CHECKBOX, function () {
+                setCheckboxMessage($(this), 'invigilator-preflight-error', '');
+                syncPreflightState();
+            });
+
+            // The real gate on the browser side: a form holding the checkbox cannot be submitted
+            // before the screen is shared and the box is ticked, however the button got clicked.
+            $(document).on('submit', 'form', function (event) {
+                var checkbox = $(this).find(CHECKBOX);
+                if (!checkbox.length) {
+                    return true;
+                }
+
+                var submitter = (event.originalEvent && event.originalEvent.submitter) || gate.lastclicked;
+                if (submitter && $(submitter).is('[name="cancel"]')) {
+                    // Leaving the form is always allowed.
+                    return true;
+                }
+
+                var problem = '';
+                if (!shareIsLive()) {
+                    problem = gate.strings.youmustsharescreen;
+                } else if (!checkbox.is(':checked')) {
+                    problem = gate.strings.youmustagree;
+                }
+
+                if (!problem) {
+                    return true;
+                }
+
+                event.preventDefault();
+                event.stopPropagation();
+                setCheckboxMessage(checkbox, 'invigilator-preflight-error', problem);
+                syncPreflightState();
+
+                return false;
+            });
+
+            // Moodle renders the preflight form into a modal after this module has run, and the
+            // share can start or stop at any moment, so the form is kept in step both ways.
+            if (window.MutationObserver) {
+                new window.MutationObserver(syncPreflightState).observe(document.body, {childList: true, subtree: true});
+            }
+            window.setInterval(syncPreflightState, 1000);
+
+            syncPreflightState();
+        }
+
         return {
             setup: function (props) {
+                setupPreflightGate(props);
+
                 window.invigilatorShareState = document.getElementById('invigilator_share_state');
                 window.invigilatorWindowSurface = document.getElementById('invigilator_window_surface');
                 window.invigilatorScreenoff = document.getElementById('invigilator_screen_off_flag');
@@ -96,6 +281,7 @@ define(['jquery', 'core/ajax', 'core/notification', 'quizaccess_invigilator/fram
                         };
 
                         startFrameCapture();
+                        syncPreflightState();
 
                         // Immediately set all status values to valid
                         setTimeout(function () {
@@ -134,6 +320,8 @@ define(['jquery', 'core/ajax', 'core/notification', 'quizaccess_invigilator/fram
                             document.getElementById('invigilator_share_state').value = '0';
                         }
 
+                        syncPreflightState();
+
                         var screenoff = document.getElementById('invigilator_screen_off_flag').value;
 
                         if (screenoff == "1") {
@@ -152,66 +340,6 @@ define(['jquery', 'core/ajax', 'core/notification', 'quizaccess_invigilator/fram
                     }
                 };
 
-                var takeScreenshot = function () {
-                    var screenoff = document.getElementById('invigilator_screen_off_flag').value;
-                    if (videoElem.srcObject !== null) {
-                        const videoTrack = videoElem.srcObject.getVideoTracks()[0];
-                        var currentStream = videoElem.srcObject;
-                        var active = currentStream.active;
-                        const videoConstraints = videoTrack.getSettings();
-                        console.log('Video constraints: media settings:', JSON.stringify(videoConstraints));
-
-                        var readyState = videoTrack.readyState;
-
-                        // COMPLETELY DISABLE ALL VALIDATION - just continue with screenshots
-                        console.log('Screenshot capture continuing - all validation disabled');
-
-                        // Capture Screen
-                        var videoScreen = document.getElementById('invigilator-video-screen');
-                        var canvasScreen = document.getElementById('invigilator-canvas-screen');
-                        var screenContext = canvasScreen.getContext('2d');
-                        var widthConfig = props.screenshotwidth;
-                        var heightConfig = findHeight(props.screenshotwidth);
-                        canvasScreen.width = widthConfig;
-                        canvasScreen.height = heightConfig;
-                        screenContext.drawImage(videoScreen, 0, 0, widthConfig, heightConfig);
-                        var screenData = canvasScreen.toDataURL('image/png');
-
-                        // API Call
-                        var wsfunction = 'quizaccess_invigilator_send_screenshot';
-                        var params = {
-                            'courseid': props.courseid,
-                            'cmid': props.cmid,
-                            'quizid': props.quizid,
-                            'screenshot': screenData
-                        };
-
-                        var request = {
-                            methodname: wsfunction,
-                            args: params
-                        };
-
-                        if (screenoff == "0") {
-                            Ajax.call([request])[0].done(function (data) {
-                                if (data.warnings.length < 1) {
-                                    console.log('Screenshot sent successfully');
-                                } else {
-                                    console.log('Screenshot API warnings:', data.warnings);
-                                }
-                            }).fail(function (error) {
-                                console.log('Screenshot API failed:', error);
-                            });
-                        }
-                    }
-                    return true;
-                };
-
-                function findHeight(width) {
-                    var currentAspectRatio = screen.width / screen.height;
-                    var newHeight = width / currentAspectRatio;
-                    return newHeight;
-                }
-
                 // The quiz window tells us when the attempt is over so a final frame is taken.
                 window.addEventListener('message', function (event) {
                     if (event.origin !== window.location.origin) {
@@ -228,24 +356,9 @@ define(['jquery', 'core/ajax', 'core/notification', 'quizaccess_invigilator/fram
                 });
 
                 var windowState = setInterval(updateWindowStatus, 1000);
-                var screenShotInterval = setInterval(takeScreenshot, props.screenshotdelay * 1000);
             },
             init: function (props) {
-                // Immediately enable all buttons and hide validation
-                $('#id_submitbutton').prop("disabled", false);
-                $('#id_invigilator').css("display", 'block');
-                $("label[for='id_invigilator']").css("display", 'block');
-
-                // Auto-check the checkbox
-                $('#id_invigilator').prop('checked', true);
-
-                console.log('Invigilator validation completely disabled - all checks bypassed');
-
-                $('#id_invigilator').click(function () {
-                    // Always enable submit button regardless of validation
-                    $('#id_submitbutton').prop("disabled", false);
-                    console.log('Submit button enabled - validation bypassed');
-                });
+                setupPreflightGate(props);
 
                 return true;
             }
