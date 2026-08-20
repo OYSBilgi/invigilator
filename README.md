@@ -85,8 +85,12 @@ The check runs for every new attempt and is skipped only when an existing attemp
 
 From the quiz page, staff with the `quizaccess/invigilator:viewrecording` capability get a
 **View screen captures** button, which lists one row per session. Opening a session gives a player
-that steps through the frames at 1 to 8 frames per second, with a scrub bar, single frame stepping
-and a time stamped frame list to jump anywhere in the attempt.
+that steps through the screenshots at 1 to 8 per second, with a scrub bar, single frame stepping
+and a time stamped list to jump anywhere in the attempt.
+
+Clicking the screenshot opens it at its full captured size in a lightbox, with the time it was
+taken as the caption; the player pauses while you look at it. The same lightbox is used by the
+older screenshot report.
 `quizaccess/invigilator:deleterecording` allows deleting a whole session.
 
 ### Capabilities

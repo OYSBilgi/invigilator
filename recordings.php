@@ -103,12 +103,24 @@ if ($sessionid) {
 
     echo html_writer::start_div('invigilator-player-wrapper');
 
+    // The frame is wrapped in a lightbox link so it can be opened at its full size. The player
+    // keeps the link pointing at whichever frame is on screen.
+    echo html_writer::start_tag('a', [
+        'id' => 'invigilator-player-link',
+        'class' => 'invigilator-player-zoom',
+        'href' => $playlist[0]['url'],
+        'data-lightbox' => 'invigilator-frame',
+        'data-title' => $playlist[0]['time'],
+        'title' => get_string('clicktoenlarge', 'quizaccess_invigilator'),
+    ]);
     echo html_writer::empty_tag('img', [
         'id' => 'invigilator-player-frame',
         'class' => 'invigilator-player-frame',
         'src' => $playlist[0]['url'],
         'alt' => get_string('recordingsreport', 'quizaccess_invigilator'),
     ]);
+    echo html_writer::end_tag('a');
+    echo html_writer::div(get_string('clicktoenlarge', 'quizaccess_invigilator'), 'invigilator-player-zoomhint');
 
     // Controls: play or pause, step by one frame, and how fast the frames are shown.
     $controls = html_writer::tag('button', get_string('player:play', 'quizaccess_invigilator'), [

@@ -138,3 +138,4 @@ $string['setting:captureheading_desc'] = 'While a student attempts the quiz, the
 $string['setting:storageheading'] = 'Storage';
 $string['setting:storageheading_desc'] = 'How long the captured images are kept, and the size limit one image may reach.';
 $string['error:outofrange'] = 'Enter a whole number between {$a->min} and {$a->max}.';
+$string['clicktoenlarge'] = 'Click the screenshot to see it at full size.';

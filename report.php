@@ -74,7 +74,7 @@ $PAGE->set_heading($COURSE->fullname . ': ' . get_string('pluginname', 'quizacce
 
 $PAGE->navbar->add(get_string('quizaccess_invigilator_label', 'quizaccess_invigilator'), $navurl);
 
-$PAGE->requires->js_call_amd('quizaccess_invigilator/lightbox2');
+$PAGE->requires->js_call_amd('quizaccess_invigilator/lightboxloader', 'init');
 
 $settingsbtn = "";
 $logbtn = "";

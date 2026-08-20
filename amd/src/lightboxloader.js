@@ -1,4 +1,3 @@
-<?php
 // This file is part of Moodle invigilator for Moodle - http://moodle.org/
 //
 // Moodle invigilator is free software: you can redistribute it and/or modify
@@ -13,19 +12,29 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with MailTest.  If not, see <http://www.gnu.org/licenses/>.
+
 /**
- * Version information for the quizaccess_invigilator plugin.
+ * Loads the lightbox so that clicking a captured image opens it at full size.
  *
- * @package    quizaccess_invigilator
+ * The lightbox binds itself when the module is loaded, so a page only needs to pull it in.
+ * This wrapper exists to give js_call_amd() a function to call: calling the lightbox's own
+ * init() a second time would bind its handlers twice.
+ *
+ * @module     quizaccess_invigilator/lightboxloader
  * @copyright  2021 Brain Station 23
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+define(['quizaccess_invigilator/lightbox2'], function() {
 
-defined('MOODLE_INTERNAL') || die();
+    return {
 
-$plugin->component = 'quizaccess_invigilator';
-$plugin->release = '2.2.0';
-$plugin->version = 2026081903;
-$plugin->requires = 2022041900; // Moodle 4.0.
-$plugin->supported = [400, 500]; // Moodle 4.0 - 5.0.
-$plugin->maturity = MATURITY_BETA;
+        /**
+         * Nothing to do: requiring the lightbox above is what enables it.
+         *
+         * @return {boolean}
+         */
+        init: function() {
+            return true;
+        }
+    };
+});

@@ -138,3 +138,4 @@ $string['setting:captureheading_desc'] = 'Öğrenci sınavı çözerken paylaş�
 $string['setting:storageheading'] = 'Depolama';
 $string['setting:storageheading_desc'] = 'Yakalanan görüntülerin ne kadar saklanacağı ve bir görüntünün ulaşabileceği boyut sınırı.';
 $string['error:outofrange'] = '{$a->min} ile {$a->max} arasında bir tam sayı girin.';
+$string['clicktoenlarge'] = 'Ekran görüntüsünün büyük halini görmek için üzerine tıklayın.';

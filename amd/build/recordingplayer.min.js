@@ -21,7 +21,9 @@
  * @copyright  2021 Brain Station 23
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-define([], function() {
+// The lightbox module is pulled in for its side effect: loading it binds the handler that opens
+// a full size view when the frame is clicked.
+define(['quizaccess_invigilator/lightbox2'], function() {
 
     return {
 
@@ -32,6 +34,7 @@ define([], function() {
          */
         init: function(props) {
             var image = document.getElementById('invigilator-player-frame');
+            var zoomlink = document.getElementById('invigilator-player-link');
             var status = document.getElementById('invigilator-player-status');
             var list = document.getElementById('invigilator-player-list');
             var toggle = document.getElementById('invigilator-player-toggle');
@@ -54,7 +57,7 @@ define([], function() {
              */
             var preload = function(index) {
                 if (index >= 0 && index < frames.length) {
-                    var preloader = new Image();
+                    var preloader = new window.Image();
                     preloader.src = frames[index].url;
                 }
             };
@@ -70,6 +73,12 @@ define([], function() {
                 }
                 current = index;
                 image.src = frames[index].url;
+
+                if (zoomlink) {
+                    // Enlarging always shows the frame that is on screen right now.
+                    zoomlink.href = frames[index].url;
+                    zoomlink.setAttribute('data-title', frames[index].time);
+                }
 
                 if (status) {
                     status.textContent = props.playingnow
@@ -168,6 +177,11 @@ define([], function() {
                         play();
                     }
                 });
+            }
+
+            if (zoomlink) {
+                // Looking at a still while the player runs on underneath helps nobody.
+                zoomlink.addEventListener('click', pause);
             }
 
             if (list) {
