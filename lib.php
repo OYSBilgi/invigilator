@@ -42,7 +42,11 @@ function quizaccess_invigilator_pluginfile($course, $cm, $context, $filearea, $a
         return false;
     }
 
-    $allowedareas = ['picture', \quizaccess_invigilator\recording_manager::FILEAREA];
+    $allowedareas = [
+        'picture',
+        \quizaccess_invigilator\recording_manager::FILEAREA,
+        \quizaccess_invigilator\recording_manager::THUMBFILEAREA,
+    ];
     if (!in_array($filearea, $allowedareas, true)) {
         return false;
     }
@@ -66,6 +70,7 @@ function quizaccess_invigilator_pluginfile($course, $cm, $context, $filearea, $a
     $viewcapability = $filearea === 'picture'
         ? 'quizaccess/invigilator:getscreenshot'
         : 'quizaccess/invigilator:viewrecording';
+
     if ((int)$file->get_userid() !== (int)$USER->id && !has_capability($viewcapability, $context)) {
         return false;
     }

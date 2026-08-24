@@ -52,6 +52,10 @@ if ($hassiteconfig) {
         get_string('setting:recordingwidth', 'quizaccess_invigilator'),
         get_string('setting:recordingwidth_desc', 'quizaccess_invigilator'), 1280, 320, 3840));
 
+    $settings->add(new setting_intrange('quizaccess_invigilator/recordingthumbwidth',
+        get_string('setting:recordingthumbwidth', 'quizaccess_invigilator'),
+        get_string('setting:recordingthumbwidth_desc', 'quizaccess_invigilator'), 240, 80, 640));
+
     // How long the images are kept, and how big one is allowed to be.
     $settings->add(new admin_setting_heading('quizaccess_invigilator/storageheading',
         get_string('setting:storageheading', 'quizaccess_invigilator'),

@@ -10,7 +10,8 @@ Before starting the quiz, it will ask for screenshare permission. By accepting t
 ## Features
 - Capture the entire screen, with the interval, quality and width set by the site administrator.
 - Capture the shared screen as one small image every few seconds for the whole attempt.
-- Play a session back in the browser as a time lapse, with speed control, scrubbing and a frame list.
+- Play a session back in the browser as a time lapse, with speed control and scrubbing.
+- Browse every screenshot of an attempt as an album of thumbnails, and enlarge any of them with previous and next arrows.
 - Can't access quiz if the user does not allow the screenshare
 - Admin report and check any suspicious activity
 - It will work with existing Questions Bank and Quizes
@@ -50,6 +51,7 @@ checked when the form is saved, so a mistyped zero is refused rather than silent
 | Seconds between screenshots | 10 | 2-600 | How often the screen is captured. |
 | Screenshot quality | 60 | 10-100 | JPEG quality of each image. |
 | Screenshot width (pixels) | 1280 | 320-3840 | Images are scaled down to at most this width. |
+| Album thumbnail width (pixels) | 240 | 80-640 | Width of the small copy shown in the album. |
 | Keep screenshots for (days) | 0 | 0-3650 | 0 keeps them until deleted by hand. |
 | Maximum size of one screenshot (MB) | 2 | 1-50 | Larger images are refused. |
 
@@ -84,13 +86,22 @@ The check runs for every new attempt and is skipped only when an existing attemp
 ### Watching a capture session
 
 From the quiz page, staff with the `quizaccess/invigilator:viewrecording` capability get a
-**View screen captures** button, which lists one row per session. Opening a session gives a player
-that steps through the screenshots at 1 to 8 per second, with a scrub bar, single frame stepping
-and a time stamped list to jump anywhere in the attempt.
+**View screen captures** button, which lists one row per session. Opening a session gives two views
+of the same attempt:
 
-Clicking the screenshot opens it at its full captured size in a lightbox, with the time it was
-taken as the caption; the player pauses while you look at it. The same lightbox is used by the
-older screenshot report.
+- **The player** at the top steps through the screenshots at 1 to 8 per second, with a scrub bar
+  and single frame stepping, so an attempt can be watched as a time lapse.
+- **The album** below it shows every screenshot of the session as a thumbnail, oldest first, each
+  labelled with the time it was taken. The thumbnail of the frame the player is on is highlighted.
+
+Clicking a thumbnail, or the player frame itself, opens that screenshot at its full captured size,
+and the arrows (or the left and right keys) move to the screenshot before and after it. The player
+pauses while the enlarged view is open. The same lightbox is used by the older screenshot report.
+
+Thumbnails are stored next to the screenshots in a `thumbnail` file area, roughly 10 KB each, and
+are lazily loaded so an album of several hundred screenshots stays quick to open. Screenshots
+captured before the album existed get their thumbnails from the nightly clean up task, and fall
+back to the full sized image until then.
 `quizaccess/invigilator:deleterecording` allows deleting a whole session.
 
 ### Capabilities

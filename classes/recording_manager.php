@@ -50,11 +50,15 @@ class recording_manager {
     /** @var string File area the frames are stored in. */
     const FILEAREA = 'recording';
 
+    /** @var string File area holding the small version of each frame shown in the album. */
+    const THUMBFILEAREA = 'thumbnail';
+
     /** @var array Fallbacks used until the admin settings have been saved for the first time. */
     const DEFAULTS = [
         'enablerecording' => 1,
         'recordinginterval' => 10,
         'recordingwidth' => 1280,
+        'recordingthumbwidth' => 240,
         'recordingquality' => 60,
         'recordingmaxsize' => 2,
         'recordingretention' => 0,
@@ -176,9 +180,100 @@ class recording_manager {
 
         $record->recording = self::get_frame_url($context->id, $record->id, $record->filename)->out(false);
 
+        self::store_thumbnail($context->id, $record, $binary);
+
         $DB->update_record(self::TABLE, $record);
 
         return $record;
+    }
+
+    /**
+     * Store the small version of a frame that the album shows.
+     *
+     * A session can hold hundreds of frames, so the album must not load the full sized images.
+     * Failing to build one is not fatal: the album falls back to the frame itself.
+     *
+     * @param int $contextid
+     * @param stdClass $record the frame record, already stored.
+     * @param string $binary the full sized image.
+     * @return bool whether a thumbnail was stored.
+     */
+    public static function store_thumbnail(int $contextid, stdClass $record, string $binary): bool {
+        $thumbnail = self::create_thumbnail_data($binary);
+        if ($thumbnail === null) {
+            return false;
+        }
+
+        $fs = get_file_storage();
+        $filename = self::thumbnail_filename($record);
+
+        $existing = $fs->get_file($contextid, 'quizaccess_invigilator', self::THUMBFILEAREA,
+            $record->id, '/', $filename);
+        if ($existing) {
+            $existing->delete();
+        }
+
+        $fs->create_file_from_string((object)[
+            'contextid' => $contextid,
+            'component' => 'quizaccess_invigilator',
+            'filearea' => self::THUMBFILEAREA,
+            'itemid' => $record->id,
+            'filepath' => '/',
+            'filename' => $filename,
+            'userid' => $record->userid,
+            'mimetype' => 'image/jpeg',
+            'license' => '',
+            'author' => '',
+        ], $thumbnail);
+
+        return true;
+    }
+
+    /**
+     * Name the thumbnail of a frame is stored under.
+     *
+     * @param stdClass $record the frame record.
+     * @return string
+     */
+    public static function thumbnail_filename(stdClass $record): string {
+        return 'thumb-' . $record->sessionid . '-' . str_pad((string)$record->sequence, 5, '0', STR_PAD_LEFT) . '.jpg';
+    }
+
+    /**
+     * Scale an image down to the configured album size.
+     *
+     * @param string $binary the full sized image.
+     * @param int|null $width overrides the configured width.
+     * @return string|null jpeg data, or null when the image could not be scaled.
+     */
+    public static function create_thumbnail_data(string $binary, ?int $width = null): ?string {
+        if (!function_exists('imagecreatefromstring') || !function_exists('imagescale')) {
+            // Without GD the album simply shows the frames themselves.
+            return null;
+        }
+
+        if ($width === null) {
+            $width = self::get_setting('recordingthumbwidth');
+        }
+
+        $source = @imagecreatefromstring($binary);
+        if ($source === false) {
+            return null;
+        }
+
+        $thumbnail = imagescale($source, min($width, imagesx($source)));
+        imagedestroy($source);
+
+        if ($thumbnail === false) {
+            return null;
+        }
+
+        ob_start();
+        imagejpeg($thumbnail, null, 70);
+        $data = ob_get_clean();
+        imagedestroy($thumbnail);
+
+        return $data === false || $data === '' ? null : $data;
     }
 
     /**
@@ -227,6 +322,104 @@ class recording_manager {
               ORDER BY MIN(r.timecreated) DESC";
 
         return $DB->get_records_sql($sql, $params);
+    }
+
+    /**
+     * Url the small version of the given frame is served from.
+     *
+     * @param int $contextid
+     * @param int $itemid
+     * @param string $filename the thumbnail file name.
+     * @return moodle_url
+     */
+    public static function get_thumbnail_url(int $contextid, int $itemid, string $filename): moodle_url {
+        return moodle_url::make_pluginfile_url($contextid, 'quizaccess_invigilator', self::THUMBFILEAREA,
+            $itemid, '/', $filename, false);
+    }
+
+    /**
+     * The frames of one session, each with the urls the album and the lightbox need.
+     *
+     * Which frames have a thumbnail is answered in one query rather than one per frame, and any
+     * frame without one falls back to the full sized image.
+     *
+     * @param context $context the module context of the quiz.
+     * @param string $sessionid
+     * @return array of frame records with ->fullurl and ->thumburl added.
+     */
+    public static function get_frames_with_urls(context $context, string $sessionid): array {
+        global $DB;
+
+        $frames = self::get_frames($context->instanceid, $sessionid);
+        if (empty($frames)) {
+            return [];
+        }
+
+        list($insql, $params) = $DB->get_in_or_equal(array_keys($frames), SQL_PARAMS_NAMED);
+        $params['contextid'] = $context->id;
+        $params['component'] = 'quizaccess_invigilator';
+        $params['filearea'] = self::THUMBFILEAREA;
+        $withthumbnail = $DB->get_fieldset_select('files', 'DISTINCT itemid',
+            "contextid = :contextid AND component = :component AND filearea = :filearea
+                 AND filename <> '.' AND itemid $insql", $params);
+        $withthumbnail = array_flip($withthumbnail);
+
+        foreach ($frames as $frame) {
+            $frame->fullurl = self::get_frame_url($context->id, $frame->id, $frame->filename)->out(false);
+            $frame->thumburl = isset($withthumbnail[$frame->id])
+                ? self::get_thumbnail_url($context->id, $frame->id, self::thumbnail_filename($frame))->out(false)
+                : $frame->fullurl;
+        }
+
+        return $frames;
+    }
+
+    /**
+     * Build the thumbnails that are still missing, oldest frames first.
+     *
+     * Frames stored before the album existed have no thumbnail, so the scheduled task fills them
+     * in a few hundred at a time instead of making one report page do all the work.
+     *
+     * @param int $limit how many thumbnails to build at most.
+     * @return int how many were built.
+     */
+    public static function backfill_thumbnails(int $limit = 200): int {
+        global $DB;
+
+        $sql = "SELECT r.*
+                  FROM {" . self::TABLE . "} r
+             LEFT JOIN {files} f ON f.itemid = r.id
+                       AND f.component = :component
+                       AND f.filearea = :filearea
+                       AND f.filename <> '.'
+                 WHERE f.id IS NULL
+              ORDER BY r.id ASC";
+
+        $candidates = $DB->get_records_sql($sql, [
+            'component' => 'quizaccess_invigilator',
+            'filearea' => self::THUMBFILEAREA,
+        ], 0, $limit);
+
+        $fs = get_file_storage();
+        $built = 0;
+        foreach ($candidates as $frame) {
+            $context = context_module::instance($frame->cmid, IGNORE_MISSING);
+            if (!$context) {
+                continue;
+            }
+
+            $file = $fs->get_file($context->id, 'quizaccess_invigilator', self::FILEAREA,
+                $frame->id, '/', $frame->filename);
+            if (!$file) {
+                continue;
+            }
+
+            if (self::store_thumbnail($context->id, $frame, $file->get_content())) {
+                $built++;
+            }
+        }
+
+        return $built;
     }
 
     /**
@@ -329,6 +522,7 @@ class recording_manager {
             }
             if ($context) {
                 $fs->delete_area_files($context->id, 'quizaccess_invigilator', self::FILEAREA, $record->id);
+                $fs->delete_area_files($context->id, 'quizaccess_invigilator', self::THUMBFILEAREA, $record->id);
             }
             $DB->delete_records(self::TABLE, ['id' => $record->id]);
             $deleted++;

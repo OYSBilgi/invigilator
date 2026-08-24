@@ -93,6 +93,118 @@ final class recording_manager_test extends \advanced_testcase {
         $this->assertFalse(recording_manager::is_enabled());
     }
 
+    /**
+     * A real, if boring, JPEG the thumbnail code can actually scale.
+     *
+     * @param int $width
+     * @param int $height
+     * @return string
+     */
+    protected function fake_screenshot(int $width = 1280, int $height = 720): string {
+        $image = imagecreatetruecolor($width, $height);
+        imagefilledrectangle($image, 0, 0, $width, $height, imagecolorallocate($image, 40, 90, 160));
+
+        ob_start();
+        imagejpeg($image, null, 70);
+        $data = ob_get_clean();
+        imagedestroy($image);
+
+        return $data;
+    }
+
+    public function test_a_thumbnail_is_stored_beside_the_frame(): void {
+        $this->resetAfterTest();
+        $this->requires_gd();
+
+        set_config('recordingthumbwidth', 200, 'quizaccess_invigilator');
+
+        $record = $this->store('withthumb', 0, $this->fake_screenshot());
+        $context = \context_module::instance($this->cm->id);
+
+        $thumbnail = get_file_storage()->get_file($context->id, 'quizaccess_invigilator',
+            recording_manager::THUMBFILEAREA, $record->id, '/', recording_manager::thumbnail_filename($record));
+
+        $this->assertNotFalse($thumbnail, 'a thumbnail should have been stored');
+        $this->assertEquals('thumb-withthumb-00000.jpg', $thumbnail->get_filename());
+
+        $size = getimagesizefromstring($thumbnail->get_content());
+        $this->assertEquals(200, $size[0], 'the thumbnail should be scaled to the configured width');
+        $this->assertLessThan($record->filesize, $thumbnail->get_filesize());
+    }
+
+    public function test_frames_carry_the_urls_the_album_needs(): void {
+        $this->resetAfterTest();
+        $this->requires_gd();
+
+        $withthumb = $this->store('album', 0, $this->fake_screenshot());
+        $context = \context_module::instance($this->cm->id);
+
+        $frames = recording_manager::get_frames_with_urls($context, 'album');
+        $frame = reset($frames);
+
+        $this->assertStringContainsString(recording_manager::FILEAREA, $frame->fullurl);
+        $this->assertStringContainsString(recording_manager::THUMBFILEAREA, $frame->thumburl);
+        $this->assertNotEquals($frame->fullurl, $frame->thumburl);
+        $this->assertEquals($withthumb->id, $frame->id);
+    }
+
+    public function test_frames_without_a_thumbnail_fall_back_to_the_full_image(): void {
+        $this->resetAfterTest();
+
+        // Not an image, so no thumbnail can be built from it.
+        $record = $this->store('nothumb', 0, 'not an image');
+        $context = \context_module::instance($this->cm->id);
+
+        $frames = recording_manager::get_frames_with_urls($context, 'nothumb');
+        $frame = reset($frames);
+
+        $this->assertEquals($frame->fullurl, $frame->thumburl);
+        $this->assertEquals($record->id, $frame->id);
+    }
+
+    public function test_missing_thumbnails_are_backfilled(): void {
+        $this->resetAfterTest();
+        $this->requires_gd();
+
+        $record = $this->store('backfill', 0, $this->fake_screenshot());
+        $context = \context_module::instance($this->cm->id);
+        $fs = get_file_storage();
+
+        // Pretend the frame was captured before the album existed.
+        $fs->delete_area_files($context->id, 'quizaccess_invigilator',
+            recording_manager::THUMBFILEAREA, $record->id);
+        $this->assertFalse($fs->get_file($context->id, 'quizaccess_invigilator',
+            recording_manager::THUMBFILEAREA, $record->id, '/', recording_manager::thumbnail_filename($record)));
+
+        $this->assertEquals(1, recording_manager::backfill_thumbnails(10));
+        $this->assertNotFalse($fs->get_file($context->id, 'quizaccess_invigilator',
+            recording_manager::THUMBFILEAREA, $record->id, '/', recording_manager::thumbnail_filename($record)));
+
+        // Nothing left to do on the next run.
+        $this->assertEquals(0, recording_manager::backfill_thumbnails(10));
+    }
+
+    public function test_deleting_a_frame_takes_its_thumbnail(): void {
+        $this->resetAfterTest();
+        $this->requires_gd();
+
+        $record = $this->store('deleteme', 0, $this->fake_screenshot());
+        $context = \context_module::instance($this->cm->id);
+
+        $this->assertEquals(1, recording_manager::delete_session('deleteme', $this->cm->id));
+        $this->assertFalse(get_file_storage()->get_file($context->id, 'quizaccess_invigilator',
+            recording_manager::THUMBFILEAREA, $record->id, '/', recording_manager::thumbnail_filename($record)));
+    }
+
+    /**
+     * Skip a test that cannot run without the image library.
+     */
+    protected function requires_gd(): void {
+        if (!function_exists('imagecreatefromstring') || !function_exists('imagescale')) {
+            $this->markTestSkipped('GD with imagescale is needed to build thumbnails.');
+        }
+    }
+
     public function test_storing_a_frame_saves_the_file_and_the_row(): void {
         global $DB;
 

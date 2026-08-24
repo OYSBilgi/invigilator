@@ -29,7 +29,8 @@ use quizaccess_invigilator\recording_manager;
 defined('MOODLE_INTERNAL') || die();
 
 /**
- * Deletes recordings that are older than the configured retention period.
+ * Deletes captures that are older than the configured retention period, and fills in
+ * any album thumbnails that are still missing.
  *
  * @package    quizaccess_invigilator
  * @copyright  2021 Brain Station 23
@@ -47,21 +48,26 @@ class cleanup_recordings extends scheduled_task {
     }
 
     /**
-     * Delete expired recordings, in batches so one run cannot block the cron for long.
+     * Delete expired frames, in batches so one run cannot block the cron for long, then build
+     * a bounded number of the thumbnails the album is still missing.
      */
     public function execute() {
         $retention = recording_manager::get_setting('recordingretention');
+
         if ($retention <= 0) {
-            mtrace('quizaccess_invigilator: recording retention is disabled, nothing to do.');
-            return;
+            mtrace('quizaccess_invigilator: retention is disabled, no frames deleted.');
+        } else {
+            $total = 0;
+            do {
+                $deleted = recording_manager::purge_expired($retention);
+                $total += $deleted;
+            } while ($deleted > 0);
+
+            mtrace("quizaccess_invigilator: deleted {$total} expired frames.");
         }
 
-        $total = 0;
-        do {
-            $deleted = recording_manager::purge_expired($retention);
-            $total += $deleted;
-        } while ($deleted > 0);
-
-        mtrace("quizaccess_invigilator: deleted {$total} expired recording segments.");
+        // Frames captured before the album existed have no thumbnail yet.
+        $built = recording_manager::backfill_thumbnails(500);
+        mtrace("quizaccess_invigilator: built {$built} missing album thumbnails.");
     }
 }

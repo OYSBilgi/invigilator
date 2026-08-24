@@ -72,7 +72,7 @@ if (!recording_manager::is_enabled()) {
 
 if ($sessionid) {
     // Playback of a single session.
-    $frames = recording_manager::get_frames($cmid, $sessionid);
+    $frames = recording_manager::get_frames_with_urls($context, $sessionid);
 
     if (empty($frames)) {
         echo $OUTPUT->notification(get_string('norecordings', 'quizaccess_invigilator'), 'notifymessage');
@@ -88,7 +88,8 @@ if ($sessionid) {
     foreach ($frames as $frame) {
         $covered += $frame->duration;
         $playlist[] = [
-            'url' => recording_manager::get_frame_url($context->id, $frame->id, $frame->filename)->out(false),
+            'url' => $frame->fullurl,
+            'thumb' => $frame->thumburl,
             'label' => userdate($frame->timecreated, get_string('strftimetime', 'langconfig')),
             'time' => userdate($frame->timecreated),
         ];
@@ -103,14 +104,12 @@ if ($sessionid) {
 
     echo html_writer::start_div('invigilator-player-wrapper');
 
-    // The frame is wrapped in a lightbox link so it can be opened at its full size. The player
-    // keeps the link pointing at whichever frame is on screen.
+    // Clicking the frame opens the album at whichever screenshot is on screen, so the arrows in
+    // the lightbox carry on from there. The link is followed as is when javascript is off.
     echo html_writer::start_tag('a', [
         'id' => 'invigilator-player-link',
         'class' => 'invigilator-player-zoom',
         'href' => $playlist[0]['url'],
-        'data-lightbox' => 'invigilator-frame',
-        'data-title' => $playlist[0]['time'],
         'title' => get_string('clicktoenlarge', 'quizaccess_invigilator'),
     ]);
     echo html_writer::empty_tag('img', [
@@ -120,7 +119,6 @@ if ($sessionid) {
         'alt' => get_string('recordingsreport', 'quizaccess_invigilator'),
     ]);
     echo html_writer::end_tag('a');
-    echo html_writer::div(get_string('clicktoenlarge', 'quizaccess_invigilator'), 'invigilator-player-zoomhint');
 
     // Controls: play or pause, step by one frame, and how fast the frames are shown.
     $controls = html_writer::tag('button', get_string('player:play', 'quizaccess_invigilator'), [
@@ -153,15 +151,34 @@ if ($sessionid) {
     ]);
 
     echo html_writer::div('', 'invigilator-player-status', ['id' => 'invigilator-player-status']);
+    echo html_writer::end_div();
 
-    echo html_writer::start_tag('ol', ['id' => 'invigilator-player-list', 'class' => 'invigilator-player-list']);
+    // The album: every screenshot of the session, oldest first. The links share one lightbox
+    // group, which is what gives the enlarged view its previous and next arrows.
+    echo $OUTPUT->heading(get_string('albumheading', 'quizaccess_invigilator'), 4);
+    echo html_writer::tag('p', get_string('albumcount', 'quizaccess_invigilator', count($playlist)),
+        ['class' => 'invigilator-album-intro']);
+
+    echo html_writer::start_tag('ol', ['id' => 'invigilator-player-list', 'class' => 'invigilator-album']);
     foreach ($playlist as $index => $item) {
+        $thumbnail = html_writer::empty_tag('img', [
+            'src' => $item['thumb'],
+            'alt' => $item['label'],
+            'class' => 'invigilator-album-thumb',
+            'loading' => 'lazy',
+            'decoding' => 'async',
+        ]);
+
         echo html_writer::tag('li',
-            html_writer::link('#', $item['label'], ['data-invigilator-frame' => $index]),
-            ['class' => 'invigilator-player-item']);
+            html_writer::link($item['url'], $thumbnail . html_writer::span($item['label'], 'invigilator-album-time'), [
+                'class' => 'invigilator-album-link',
+                'data-invigilator-frame' => $index,
+                'data-lightbox' => 'invigilator-session',
+                'data-title' => $item['time'],
+            ]),
+            ['class' => 'invigilator-player-item invigilator-album-item']);
     }
     echo html_writer::end_tag('ol');
-    echo html_writer::end_div();
 
     $PAGE->requires->js_call_amd('quizaccess_invigilator/recordingplayer', 'init', [[
         'frames' => $playlist,

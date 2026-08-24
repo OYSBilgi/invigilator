@@ -75,9 +75,8 @@ define(['quizaccess_invigilator/lightbox2'], function() {
                 image.src = frames[index].url;
 
                 if (zoomlink) {
-                    // Enlarging always shows the frame that is on screen right now.
+                    // Kept in step so the link still points somewhere sensible without javascript.
                     zoomlink.href = frames[index].url;
-                    zoomlink.setAttribute('data-title', frames[index].time);
                 }
 
                 if (status) {
@@ -180,8 +179,18 @@ define(['quizaccess_invigilator/lightbox2'], function() {
             }
 
             if (zoomlink) {
-                // Looking at a still while the player runs on underneath helps nobody.
-                zoomlink.addEventListener('click', pause);
+                zoomlink.addEventListener('click', function(event) {
+                    // Looking at a still while the player runs on underneath helps nobody.
+                    pause();
+
+                    var albumlink = list ? list.querySelector('[data-invigilator-frame="' + current + '"]') : null;
+                    if (albumlink) {
+                        // Hand over to the album entry, so the enlarged view knows where it is in
+                        // the session and its arrows move to the screenshot before and after.
+                        event.preventDefault();
+                        albumlink.click();
+                    }
+                });
             }
 
             if (list) {
